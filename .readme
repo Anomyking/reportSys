@@ -1,0 +1,17 @@
+| Feature                                             | Description                                                                        |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| **Live socket indicator**                           | Updates the “Live Connected” dot and text automatically                            |
+| **3-second throttling**                             | Prevents overload when multiple updates come rapidly                               |
+| **`socket.on('reportUpdate')`**                     | Instantly refreshes the dashboard when new updates arrive                          |
+| **Manual summary form (`#summaryForm`)**            | Lets admins directly update revenue, profit, inventory, and notes                  |
+| **Auto-refresh every 60s**                          | Ensures dashboard data stays current                                               |
+| **Unified data loading (`loadAllDashboardData()`)** | Simplifies sync between overview, reports, and analytics                           |
+| **Environment-aware URLs**                          | Automatically switches between local (`localhost:5000`) and Render production URLs |
+
+
+Below is your updated CSS (safe version) that:
+✅ Keeps all your current design exactly as-is
+✅ Adds true mobile responsiveness and adaptive scaling for different screen widths
+✅ Optimizes Bento grid spacing and font sizes
+✅ Ensures the sidebar collapses cleanly and content stays visible
+✅ Keeps the live status dot floating without overlapping other UI elements

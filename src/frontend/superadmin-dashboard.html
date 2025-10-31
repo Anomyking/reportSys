@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Super Admin Dashboard | Report Portal</title>
+  <link rel="stylesheet" href="/src/frontend/styles/dashboard.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="/src/frontend/scripts/liveUpdates.js"></script>
+<script src="/src/frontend/scripts/script.js"></script>
+<script src="/src/frontend/scripts/superadmin.js"></script>
+
+</head>
+
+<body>
+  <!-- ✅ SIDEBAR -->
+  <aside class="sidebar">
+    <h2>⚙️ Super Admin</h2>
+    <nav>
+      <a href="#overview" class="active">📊 Overview</a>
+      <a href="#users">👥 Manage Users</a>
+      <a href="#reports">📝 Reports</a>
+      <a href="#notifications">🔔 Notifications</a>
+    </nav>
+    <a id="logoutBtn" class="logout" href="#">🚪 Logout</a>
+  </aside>
+
+  <!-- ✅ MAIN CONTENT -->
+  <main class="content">
+   <section id="overview">
+  <h2>📈 Overview</h2>
+  <div class="bento-grid">
+    <div class="bento-card" id="totalRevenueCard">
+      <h3>Total Revenue</h3>
+      <p class="metric" id="totalRevenue">$0</p>
+      <small>💰 Sum of all approved reports</small>
+    </div>
+
+    <div class="bento-card" id="totalProfitCard">
+      <h3>Total Profit</h3>
+      <p class="metric" id="totalProfit">$0</p>
+      <small>📈 Calculated from report summaries</small>
+    </div>
+
+    <div class="bento-card" id="totalInventoryCard">
+      <h3>Total Inventory Value</h3>
+      <p class="metric" id="totalInventory">$0</p>
+      <small>📦 Based on latest admin updates</small>
+    </div>
+  </div>
+
+  <div class="chart-container">
+    <canvas id="bentoTrendChart"></canvas>
+  </div>
+</section>
+
+
+    <section id="users">
+      <h2>👥 Manage Users</h2>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="usersTable">
+            <tr><td colspan="4" style="text-align:center;">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="reports">
+      <h2>📝 Reports</h2>
+      <div id="reportsContainer" class="report-list">
+        <p>Loading reports...</p>
+      </div>
+    </section>
+
+    <section id="notifications">
+      <h2>🔔 Notifications</h2>
+      <div id="notificationsList">
+        <p>Loading notifications...</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="/src/frontend/styles/superadmin.css"></script>
+  
+</body>
+</html>

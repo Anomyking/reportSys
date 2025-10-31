@@ -1,0 +1,182 @@
+:root {
+  --primary: #FF0B55;
+  --secondary: #CF0F47;
+  --light: #FFDEDE;
+  --dark: #000000;
+  --white: #FFFFFF;
+}
+
+/* ---------- GLOBAL ---------- */
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background-color: var(--light);
+  color: var(--dark);
+  display: flex;
+  height: 100vh;
+  transition: background-color 0.4s ease;
+}
+
+/* ---------- SIDEBAR ---------- */
+.sidebar {
+  width: 250px;
+  background: var(--dark);
+  color: var(--white);
+  display: flex;
+  flex-direction: column;
+  padding: 25px;
+  box-shadow: 3px 0 12px rgba(0, 0, 0, 0.15);
+  animation: slideInLeft 0.6s ease;
+}
+
+.sidebar h2 {
+  color: var(--primary);
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar nav a {
+  color: var(--white);
+  text-decoration: none;
+  padding: 12px;
+  border-radius: 8px;
+  margin: 4px 0;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+.sidebar nav a.active,
+.sidebar nav a:hover {
+  background: var(--primary);
+  transform: translateX(5px);
+}
+
+/* ---------- LOGOUT ---------- */
+.sidebar .logout {
+  margin-top: auto;
+  background: var(--secondary);
+  color: var(--white);
+  text-align: center;
+  border-radius: 6px;
+  padding: 12px;
+  text-decoration: none;
+  font-weight: bold;
+  transition: background 0.3s ease, transform 0.2s;
+}
+.sidebar .logout:hover {
+  background: var(--primary);
+  transform: scale(1.05);
+}
+
+/* ---------- MAIN CONTENT ---------- */
+.content {
+  flex: 1;
+  padding: 30px;
+  overflow-y: auto;
+  animation: fadeIn 0.6s ease;
+}
+
+/* ---------- SECTIONS ---------- */
+section {
+  background: var(--white);
+  padding: 25px;
+  margin-bottom: 25px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+section:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* ---------- BUTTONS ---------- */
+button {
+  background: var(--primary);
+  color: var(--white);
+  border: none;
+  border-radius: 6px;
+  padding: 10px 15px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+button:hover {
+  background: var(--secondary);
+  transform: scale(1.05);
+}
+
+/* ---------- REPORT CARDS ---------- */
+.report-card {
+  background: var(--white);
+  border-left: 5px solid var(--primary);
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.report-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+}
+
+/* ---------- NOTIFICATIONS ---------- */
+.notification {
+  background: var(--white);
+  border-left: 5px solid var(--secondary);
+  margin-bottom: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+  animation: fadeIn 0.6s ease;
+}
+.notification.unread {
+  border-left-color: var(--primary);
+}
+
+/* ---------- CHART ---------- */
+#reportsChart {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  animation: fadeIn 0.8s ease;
+}
+
+
+/* ---------- ANIMATIONS ---------- */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideInLeft {
+  from { transform: translateX(-100px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* ---------- RESPONSIVE DESIGN ---------- */
+@media (max-width: 768px) {
+  body {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+    animation: slideDown 0.5s ease;
+  }
+
+  .content {
+    padding: 20px;
+  }
+
+  section {
+    padding: 20px;
+  }
+}

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard | Report Portal</title>
+  <link rel="stylesheet" href="/src/frontend/styles/dashboard.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script src="/src/frontend/scripts/admin.js"></script>
+  <script src="/src/frontend/scripts/script.js"></script>
+ 
+</head>
+
+<body>
+
+  <div id="liveStatus">
+    <div id="liveDot"></div>
+    <span id="liveText">Connecting...</span>
+  </div>
+
+  <!-- ✅ SIDEBAR -->
+  <aside class="sidebar">
+    <h2>🛠️ Admin Panel</h2>
+    <nav>
+      <a href="#overview" class="active">📊 Overview</a>
+      <a href="#reports">📝 Reports</a>
+      <a href="#notifications">🔔 Notifications</a>
+    </nav>
+    <a id="logoutBtn" class="logout" href="#">🚪 Logout</a>
+  </aside>
+
+  <!-- ✅ MAIN CONTENT -->
+  <main class="content">
+
+    <!-- ✅ Bento Overview -->
+    <section id="overview">
+      <h2>📈 Overview</h2>
+      <div class="bento-grid">
+        <div class="bento-card">
+          <h3>Total Revenue</h3>
+          <p class="metric" id="totalRevenue">$0</p>
+          <small>💰 Sum of all approved reports</small>
+        </div>
+
+        <div class="bento-card">
+          <h3>Total Profit</h3>
+          <p class="metric" id="totalProfit">$0</p>
+          <small>📈 Calculated from admin summaries</small>
+        </div>
+
+        <div class="bento-card">
+          <h3>Total Inventory</h3>
+          <p class="metric" id="totalInventory">$0</p>
+          <small>📦 Based on latest admin updates</small>
+        </div>
+      </div>
+
+      <div class="chart-container">
+        <canvas id="bentoTrendChart"></canvas>
+      </div>
+    </section>
+
+    <!-- ✅ Reports -->
+    <section id="reports">
+      <h2>📝 Department Reports</h2>
+      <div id="reportsContainer" class="report-list">
+        <p>Loading reports...</p>
+      </div>
+    </section>
+
+    <!-- ✅ Summary Form -->
+    <section id="summaryUpdateSection" class="summary-form">
+      <h3>📊 Update Report Summary</h3>
+      <form id="summaryForm">
+        <input type="text" id="reportId" placeholder="Enter Report ID to Update" required />
+        <input type="number" id="revenue" placeholder="Revenue ($)" step="0.01" />
+        <input type="number" id="profit" placeholder="Profit ($)" step="0.01" />
+        <input type="number" id="inventoryValue" placeholder="Inventory Value ($)" step="0.01" />
+        <textarea id="notes" placeholder="Notes (optional)" rows="3"></textarea>
+        <button type="submit">💾 Save Summary</button>
+      </form>
+    </section>
+
+    <!-- ✅ Notifications -->
+    <section id="notifications">
+      <h2>🔔 Notifications</h2>
+      <div id="notificationsContainer">
+        <p>Loading notifications...</p>
+      </div>
+    </section>
+  </main>
+
+</body>
+</html>

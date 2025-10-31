@@ -1,0 +1,88 @@
+<!DOCTYPE html
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>User Dashboard</title>
+  <link rel="stylesheet" href="/src/frontend/styles/dashboard.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script src="/src/frontend/scripts/liveUpdates.js"></script>
+
+</head>
+<body>
+
+  <!-- ✅ Sidebar Navigation -->
+  <aside class="sidebar">
+    <h2>Report Portal</h2>
+    <nav>
+      <a href="#reportManagement">Analytics</a>
+      <a href="#reportForm" class="active">Submit Report</a>
+      <a href="#reportList">My Reports</a>
+      <a href="#adminRequestSection">Request Admin Access</a>
+      <a href="#" id="profileLink">Profile</a>
+      <a href="#" id="logoutBtn" class="logout">Logout</a>
+    </nav>
+  </aside>
+
+  <!-- ✅ Main Content -->
+  <main class="content">
+  <!-- ✅ Report Management Section -->
+  <section id="reportManagement">
+    <h2>📊 Report Management</h2>
+
+    <!-- 🔹 Filters -->
+    <div class="filters">
+      <select id="categoryFilter">
+        <option value="">All Categories</option>
+        <option value="Sales Report">Sales Reports</option>
+        <option value="Inventory Report">Inventory Reports</option>
+        <option value="Status Report">Status Reports</option>
+      </select>
+
+      <select id="statusFilter">
+        <option value="">All Statuses</option>
+        <option value="Pending">Pending</option>
+        <option value="Approved">Approved</option>
+        <option value="Rejected">Rejected</option>
+      </select>
+
+      <button id="filterBtn">Apply Filter</button>
+    </div>
+
+    <!-- 🔹 Overview Chart -->
+    <div class="chart-container">
+      <canvas id="reportAnalyticsChart"></canvas>
+    </div>
+
+    <!-- 🔹 Report List -->
+    <div id="reportsContainer" class="report-list">
+      <p>Loading reports...</p>
+    </div>
+  </section>
+
+   <section id="reportForm">
+      <h2>Submit Report</h2>
+      <form id="newReportForm">
+        <input type="text" id="title" placeholder="Title" required>
+        <textarea id="description" placeholder="Description" required></textarea>
+        <select id="category" required>
+          <option value="">Select Category</option>
+          <option>Finance Report</option>
+          <option>Sales Report</option>
+          <option>Resources Report</option>
+        </select>
+        <input type="file" id="attachment">
+        <button type="submit">Submit</button>
+      </form>
+    </section>
+
+    <section id="adminRequestSection">
+      <h2>Request Admin Access</h2>
+      <p>Want to help manage reports? Request admin access below.</p>
+      <button id="requestAdminBtn">Request Admin Role</button>
+    </section>
+  </main>
+
+  <script src="/src/frontend/scripts/script.js"></script>
+</body>
+</html>
