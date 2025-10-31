@@ -16,16 +16,19 @@ import notificationRoutes from "./routes/notificationRoutes.js";
 import { createInitialAdmin } from "./config/initAdmin.js";
 import superAdminRoutes from "./routes/superAdminRoutes.js";
 
-// 🌍 Load environment variables
 dotenv.config();
 
-// ⚙️ Initialize Express + HTTP server
 const app = express();
 const server = http.createServer(app);
 
-// 🌐 CORS Configuration (allow both local + deployed frontend)
-const FRONTEND_URL = "https://rp-frontend-00wi.onrender.com";
+// ✅ Render + Local allowed origins
+const FRONTEND_URLS = [
+  "http://localhost:5500",
+  "http://127.0.0.1:5500",
+  process.env.FRONTEND_URL // add this in Render env
+];
 
+// ✅ CORS (simplified for deployment reliability)
 app.use(cors({
   origin: "*",
   credentials: true,
@@ -33,37 +36,34 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
 
-// 🧠 Initialize Socket.IO
+// ✅ Initialize Socket.IO
 export const io = new Server(server, {
   cors: {
-    origin: [
-      FRONTEND_URL,
-      "http://localhost:5500",
-      "http://127.0.0.1:5500",
-    ],
+    origin: FRONTEND_URLS,
     methods: ["GET", "POST"],
     credentials: true,
-  },
+    transports: ["websocket", "polling"],
+  }
 });
 
-// 🧱 Middleware
+// ✅ Middleware
 app.use(express.json());
 
-// 🧩 Connect to MongoDB
+// ✅ MongoDB Connection
 connectDB()
   .then(async () => {
-    console.log("✅ MongoDB connected successfully");
+    console.log("✅ MongoDB connected");
     await createInitialAdmin();
   })
-  .catch((err) => console.error("❌ DB connection error:", err.message));
+  .catch((err) => console.error("❌ DB Error:", err.message));
 
-// ⚡ Socket.IO Events
+// ✅ Socket Events
 io.on("connection", (socket) => {
-  console.log(`🔌 Client connected: ${socket.id}`);
+  console.log(`🔌 Socket connected: ${socket.id}`);
   socket.emit("connectionStatus", { connected: true });
 
   socket.on("disconnect", () => {
-    console.log(`❌ Client disconnected: ${socket.id}`);
+    console.log(`❌ Socket disconnected: ${socket.id}`);
   });
 });
 
@@ -75,47 +75,33 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/superadmin", superAdminRoutes);
 
-// ✅ Health check endpoint
+// ✅ Health Endpoint
 app.get("/api/health", (req, res) => {
   res.status(200).json({
     status: "OK",
-    message: "Server is running",
-    timestamp: new Date().toISOString(),
+    message: "Server running",
+    time: new Date().toISOString(),
   });
 });
 
-// 🗂️ Serve static frontend (optional for Render)
+// ✅ Serve Frontend
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
 app.use(express.static(path.join(__dirname, "frontend")));
 
 app.get("/", (req, res) => {
-  res.redirect("/login.html");
-});
-app.use((req, res, next) => {
-  res.setHeader(
-    "Content-Security-Policy",
-    "default-src 'self'; connect-src 'self' http://127.0.0.1:5500 ws://127.0.0.1:5500;"
-  );
-  next();
+  res.send("Backend Server Running ✅");
 });
 
-
-// ✅ Fallback route (404)
+// ✅ 404 Fallback
 app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });
 });
 
-// 🚀 Start server
+// ✅ Start Server
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-}).on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
-    console.log(` Port ${PORT} is busy, trying ${PORT + 1}...`);
-    server.listen(PORT + 1);
-  } else {
-    console.error('❌ Server error:', err);
-  }
 });
