@@ -1,8 +1,9 @@
 /************************************************************
- * CONFIG
+ * SUPERADMIN DASHBOARD (Updated for Vercel)
  ************************************************************/
-const API_URL = "https://rp-frontend.onrender.com";
+const API_URL = window.CONFIG.API_URL;
 const token = localStorage.getItem("token");
+
 if (!token) {
   window.location.href = "/login.html";
 }
@@ -32,18 +33,25 @@ document.addEventListener("DOMContentLoaded", () => {
   loadNotifications();
 });
 
+/************************************************************
+ * LOAD OVERVIEW
+ ************************************************************/
 async function loadOverview() {
   try {
-    const res = await fetch(`${API_URL}/admin/overview`, {
+    const res = await fetch(`${API_URL}/superadmin/overview`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
 
     if (!res.ok) throw new Error(data.message);
 
-    document.getElementById("totalUsers").textContent = data.users;
-    document.getElementById("totalAdmins").textContent = data.admins;
-    document.getElementById("totalReports").textContent = data.reports;
+    const totalUsersEl = document.getElementById("totalUsers");
+    const totalAdminsEl = document.getElementById("totalAdmins");
+    const totalReportsEl = document.getElementById("totalReports");
+
+    if (totalUsersEl) totalUsersEl.textContent = data.users;
+    if (totalAdminsEl) totalAdminsEl.textContent = data.admins;
+    if (totalReportsEl) totalReportsEl.textContent = data.reports;
 
     renderChart(data.reportStats);
   } catch (err) {
@@ -51,15 +59,20 @@ async function loadOverview() {
   }
 }
 
+/************************************************************
+ * LOAD ALL USERS
+ ************************************************************/
 async function loadAllUsers() {
   const usersTable = document.getElementById("usersTable");
   if (!usersTable) return;
 
   try {
-    const res = await fetch(`${API_URL}/admin/users`, {
+    const res = await fetch(`${API_URL}/superadmin/users`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const users = await res.json();
+
+    if (!res.ok) throw new Error("Failed to load users");
 
     usersTable.innerHTML = users
       .map(
@@ -95,12 +108,18 @@ async function loadAllUsers() {
     });
   } catch (err) {
     console.error("Error loading users:", err.message);
+    if (usersTable) {
+      usersTable.innerHTML = `<tr><td colspan="4" style="color:red;">Error: ${err.message}</td></tr>`;
+    }
   }
 }
 
+/************************************************************
+ * UPDATE USER ROLE
+ ************************************************************/
 async function updateUserRole(userId, newRole) {
   try {
-    const res = await fetch(`${API_URL}/admin/role/${userId}`, {
+    const res = await fetch(`${API_URL}/superadmin/role/${userId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -119,6 +138,9 @@ async function updateUserRole(userId, newRole) {
   }
 }
 
+/************************************************************
+ * LOAD REPORTS
+ ************************************************************/
 async function loadReports() {
   const reportsContainer = document.getElementById("reportsContainer");
   if (!reportsContainer) return;
@@ -127,7 +149,15 @@ async function loadReports() {
     const res = await fetch(`${API_URL}/admin/reports`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    const reports = await res.json();
+    
+    let reports = await res.json();
+    
+    // Handle wrapped response
+    if (reports.data && Array.isArray(reports.data)) {
+      reports = reports.data;
+    }
+
+    if (!res.ok) throw new Error("Failed to load reports");
 
     reportsContainer.innerHTML = reports.length
       ? reports
@@ -140,8 +170,10 @@ async function loadReports() {
             <p><strong>Status:</strong> ${r.status}</p>
             <p><small>Submitted by: ${r.user?.name || "Unknown"}</small></p>
             <div class="report-actions">
-              <button onclick="updateReportStatus('${r._id}','Approved')">Approve</button>
-              <button onclick="updateReportStatus('${r._id}','Rejected')">Reject</button>
+              ${r.status === "Pending" ? `
+                <button onclick="updateReportStatus('${r._id}','Approved')">Approve</button>
+                <button onclick="updateReportStatus('${r._id}','Rejected')">Reject</button>
+              ` : ''}
             </div>
           </div>`
           )
@@ -149,10 +181,16 @@ async function loadReports() {
       : "<p>No reports available.</p>";
   } catch (err) {
     console.error("Error loading reports:", err.message);
+    if (reportsContainer) {
+      reportsContainer.innerHTML = `<p style="color:red;">Error: ${err.message}</p>`;
+    }
   }
 }
 
-async function updateReportStatus(reportId, status) {
+/************************************************************
+ * UPDATE REPORT STATUS
+ ************************************************************/
+window.updateReportStatus = async function(reportId, status) {
   try {
     const res = await fetch(`${API_URL}/admin/reports/${reportId}`, {
       method: "PUT",
@@ -172,19 +210,30 @@ async function updateReportStatus(reportId, status) {
   } catch (err) {
     showAlert("Error updating report: " + err.message);
   }
-}
+};
 
+/************************************************************
+ * LOAD NOTIFICATIONS
+ ************************************************************/
 async function loadNotifications() {
-  const notificationsDiv = document.getElementById("notifications");
-  if (!notificationsDiv) return;
+  const notificationsList = document.getElementById("notificationsList");
+  if (!notificationsList) return;
 
   try {
     const res = await fetch(`${API_URL}/notifications`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    const notes = await res.json();
+    
+    let notes = await res.json();
+    
+    // Handle wrapped response
+    if (notes.data && Array.isArray(notes.data)) {
+      notes = notes.data;
+    }
 
-    notificationsDiv.innerHTML = notes.length
+    if (!res.ok) throw new Error("Failed to load notifications");
+
+    notificationsList.innerHTML = notes.length
       ? notes
           .map(
             (n) => `
@@ -197,6 +246,9 @@ async function loadNotifications() {
       : "<p>No notifications.</p>";
   } catch (err) {
     console.error("Notification load error:", err.message);
+    if (notificationsList) {
+      notificationsList.innerHTML = `<p style="color:red;">Error: ${err.message}</p>`;
+    }
   }
 }
 
@@ -214,7 +266,11 @@ function renderChart(reportStats) {
     reportStats.Rejected || 0,
   ];
 
-  new Chart(ctx, {
+  if (ctx._chartInstance) {
+    ctx._chartInstance.destroy();
+  }
+
+  ctx._chartInstance = new Chart(ctx, {
     type: "doughnut",
     data: {
       labels,
@@ -229,7 +285,12 @@ function renderChart(reportStats) {
   });
 }
 
+/************************************************************
+ * LOGOUT
+ ************************************************************/
 document.getElementById("logoutBtn")?.addEventListener("click", () => {
   localStorage.clear();
   window.location.href = "/login.html";
 });
+
+console.log("✅ Superadmin.js loaded with API_URL:", API_URL);

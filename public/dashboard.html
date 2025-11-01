@@ -1,13 +1,13 @@
-<!DOCTYPE html
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>User Dashboard</title>
   <link rel="stylesheet" href="dashboard.css">
+  <!-- ✅ Load config first -->
+  <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<script src="liveUpdates.js"></script>
-
 </head>
 <body>
 
@@ -26,41 +26,41 @@
 
   <!-- ✅ Main Content -->
   <main class="content">
-  <!-- ✅ Report Management Section -->
-  <section id="reportManagement">
-    <h2>📊 Report Management</h2>
+    <!-- ✅ Report Management Section -->
+    <section id="reportManagement">
+      <h2>📊 Report Management</h2>
 
-    <!-- 🔹 Filters -->
-    <div class="filters">
-      <select id="categoryFilter">
-        <option value="">All Categories</option>
-        <option value="Sales Report">Sales Reports</option>
-        <option value="Inventory Report">Inventory Reports</option>
-        <option value="Status Report">Status Reports</option>
-      </select>
+      <!-- 🔹 Filters -->
+      <div class="filters">
+        <select id="categoryFilter">
+          <option value="">All Categories</option>
+          <option value="Sales Report">Sales Reports</option>
+          <option value="Inventory Report">Inventory Reports</option>
+          <option value="Finance Report">Finance Reports</option>
+        </select>
 
-      <select id="statusFilter">
-        <option value="">All Statuses</option>
-        <option value="Pending">Pending</option>
-        <option value="Approved">Approved</option>
-        <option value="Rejected">Rejected</option>
-      </select>
+        <select id="statusFilter">
+          <option value="">All Statuses</option>
+          <option value="Pending">Pending</option>
+          <option value="Approved">Approved</option>
+          <option value="Rejected">Rejected</option>
+        </select>
 
-      <button id="filterBtn">Apply Filter</button>
-    </div>
+        <button id="filterBtn">Apply Filter</button>
+      </div>
 
-    <!-- 🔹 Overview Chart -->
-    <div class="chart-container">
-      <canvas id="reportAnalyticsChart"></canvas>
-    </div>
+      <!-- 🔹 Overview Chart -->
+      <div class="chart-container">
+        <canvas id="reportAnalyticsChart"></canvas>
+      </div>
 
-    <!-- 🔹 Report List -->
-    <div id="reportsContainer" class="report-list">
-      <p>Loading reports...</p>
-    </div>
-  </section>
+      <!-- 🔹 Report List -->
+      <div id="reportsContainer" class="report-list">
+        <p>Loading reports...</p>
+      </div>
+    </section>
 
-   <section id="reportForm">
+    <section id="reportForm">
       <h2>Submit Report</h2>
       <form id="newReportForm">
         <input type="text" id="title" placeholder="Title" required>
@@ -83,6 +83,7 @@
     </section>
   </main>
 
+  <script src="liveUpdates.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

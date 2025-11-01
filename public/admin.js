@@ -1,13 +1,11 @@
 /************************************************************
- * ADMIN DASHBOARD SCRIPT (Final version)
+ * ADMIN DASHBOARD SCRIPT (Updated for Vercel)
  * Combines: API handling + Bento analytics + Live Socket + Manual Summary Form
  ************************************************************/
 
 /* ----------------------- CONFIG -------------------------- */
-const LOCAL_API = "http://localhost:5000/api";
-const PROD_API = "https://rp-z9sk.onrender.com/api"; // Render backend URL
-const API_URL = window.location.hostname.includes("localhost") ? LOCAL_API : PROD_API;
-const BASE_URL = API_URL.replace("/api", ""); // for socket.io
+const API_URL = window.CONFIG.API_URL;
+const BASE_URL = window.CONFIG.BASE_URL;
 
 const token = localStorage.getItem("token");
 if (!token) window.location.href = "/login.html";
@@ -43,18 +41,26 @@ async function parsePossibleWrappedResponse(res) {
 }
 
 /* ---------------------- SOCKET SETUP --------------------- */
-const socket = io(BASE_URL, { transports: ["websocket"] });
+const socket = io(BASE_URL, { transports: ["websocket", "polling"] });
 const liveDot = document.getElementById("liveDot");
 const liveText = document.getElementById("liveText");
 
 socket.on("connect", () => {
   if (liveDot) liveDot.style.background = "limegreen";
   if (liveText) liveText.textContent = "Live Connected";
+  console.log("✅ Socket connected");
 });
 
 socket.on("disconnect", () => {
   if (liveDot) liveDot.style.background = "gray";
   if (liveText) liveText.textContent = "Disconnected";
+  console.log("❌ Socket disconnected");
+});
+
+socket.on("connect_error", (error) => {
+  console.warn("⚠️ Socket connection error:", error.message);
+  if (liveDot) liveDot.style.background = "orange";
+  if (liveText) liveText.textContent = "Connection Issues";
 });
 
 /* 🔄 Throttle socket updates (max once per 3s) */
@@ -109,7 +115,8 @@ async function loadOverview() {
     if (!res.ok) throw new Error(parsed.error || "Failed to load overview");
 
     const reports = Array.isArray(parsed.data) ? parsed.data : [];
-    document.getElementById("totalReports")?.textContent = reports.length;
+    const totalReportsEl = document.getElementById("totalReports");
+    if (totalReportsEl) totalReportsEl.textContent = reports.length;
 
     const stats = {
       Pending: reports.filter((r) => r.status === "Pending").length,
@@ -165,7 +172,7 @@ async function loadReports() {
 }
 
 /* ----------------- REPORT STATUS UPDATE ----------------- */
-async function updateReportStatus(reportId, status) {
+window.updateReportStatus = async function(reportId, status) {
   try {
     const res = await fetch(`${API_URL}/admin/reports/${reportId}`, {
       method: "PUT",
@@ -185,7 +192,7 @@ async function updateReportStatus(reportId, status) {
   } catch (err) {
     showAlert("❌ " + err.message);
   }
-}
+};
 
 /* ----------------- MANUAL SUMMARY FORM ------------------ */
 async function handleManualSummaryForm(e) {
@@ -284,9 +291,13 @@ async function loadBentoAnalytics() {
     const totalProfit = approved.reduce((s, r) => s + (r.adminSummary.profit || 0), 0);
     const totalInventory = approved.reduce((s, r) => s + (r.adminSummary.inventoryValue || 0), 0);
 
-    document.getElementById("totalRevenue").textContent = "$" + totalRevenue.toLocaleString();
-    document.getElementById("totalProfit").textContent = "$" + totalProfit.toLocaleString();
-    document.getElementById("totalInventory").textContent = "$" + totalInventory.toLocaleString();
+    const revenueEl = document.getElementById("totalRevenue");
+    const profitEl = document.getElementById("totalProfit");
+    const inventoryEl = document.getElementById("totalInventory");
+
+    if (revenueEl) revenueEl.textContent = "$" + totalRevenue.toLocaleString();
+    if (profitEl) profitEl.textContent = "$" + totalProfit.toLocaleString();
+    if (inventoryEl) inventoryEl.textContent = "$" + totalInventory.toLocaleString();
 
     renderBentoTrendChart(approved);
   } catch (err) {
@@ -325,3 +336,5 @@ function renderBentoTrendChart(reports) {
     },
   });
 }
+
+console.log("✅ Admin.js loaded with API_URL:", API_URL);

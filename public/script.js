@@ -1,14 +1,7 @@
 /************************************************************
- * GLOBAL CONSTANTS
+ * GLOBAL CONSTANTS - Using centralized config
  ************************************************************/
-const LOCAL_API = "http://localhost:5000/api"; // Local development
-const PROD_API = "https://rp-z9sk.onrender.com/api"; // Your Render backend
-
-// Detect environment automatically
-const API_URL = window.location.hostname.includes("localhost")
-  ? LOCAL_API
-  : PROD_API;
-
+const API_URL = window.CONFIG.API_URL;
 const token = localStorage.getItem("token");
 const role = localStorage.getItem("role");
 
@@ -176,7 +169,7 @@ async function loadReports() {
     });
 
     if (!res.ok) throw new Error(`Failed to fetch reports (${res.status})`);
-    const { data } = await res.json(); // ✅ Adjusted to use proper response shape
+    const { data } = await res.json();
 
     if (!Array.isArray(data)) throw new Error("Invalid response from server");
 
@@ -263,12 +256,16 @@ async function loadReportAnalytics() {
     renderAnalyticsChart(filtered);
   } catch (err) {
     console.error("Report analytics error:", err);
-    container.innerHTML = `<p style="color:red;">Error loading reports: ${err.message}</p>`;
+    if (container) {
+      container.innerHTML = `<p style="color:red;">Error loading reports: ${err.message}</p>`;
+    }
   }
 }
 
 function renderReports(reports) {
   const container = document.getElementById("reportsContainer");
+  if (!container) return;
+  
   if (!reports || reports.length === 0) {
     container.innerHTML = "<p>No reports found.</p>";
     return;
@@ -343,3 +340,4 @@ function renderAnalyticsChart(reports) {
   });
 }
 
+console.log("✅ Script.js loaded with API_URL:", API_URL);

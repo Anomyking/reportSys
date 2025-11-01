@@ -5,12 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Super Admin Dashboard | Report Portal</title>
   <link rel="stylesheet" href="dashboard.css" />
+  <!-- ✅ Load config first -->
+  <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-<script src="liveUpdates.js"></script>
-<script src="script.js"></script>
-<script src="superadmin.js"></script>
-
 </head>
 
 <body>
@@ -28,33 +26,32 @@
 
   <!-- ✅ MAIN CONTENT -->
   <main class="content">
-   <section id="overview">
-  <h2>📈 Overview</h2>
-  <div class="bento-grid">
-    <div class="bento-card" id="totalRevenueCard">
-      <h3>Total Revenue</h3>
-      <p class="metric" id="totalRevenue">$0</p>
-      <small>💰 Sum of all approved reports</small>
-    </div>
+    <section id="overview">
+      <h2>📈 Overview</h2>
+      <div class="bento-grid">
+        <div class="bento-card" id="totalRevenueCard">
+          <h3>Total Users</h3>
+          <p class="metric" id="totalUsers">0</p>
+          <small>👥 All registered users</small>
+        </div>
 
-    <div class="bento-card" id="totalProfitCard">
-      <h3>Total Profit</h3>
-      <p class="metric" id="totalProfit">$0</p>
-      <small>📈 Calculated from report summaries</small>
-    </div>
+        <div class="bento-card" id="totalProfitCard">
+          <h3>Total Admins</h3>
+          <p class="metric" id="totalAdmins">0</p>
+          <small>🛡️ Admin and superadmin users</small>
+        </div>
 
-    <div class="bento-card" id="totalInventoryCard">
-      <h3>Total Inventory Value</h3>
-      <p class="metric" id="totalInventory">$0</p>
-      <small>📦 Based on latest admin updates</small>
-    </div>
-  </div>
+        <div class="bento-card" id="totalInventoryCard">
+          <h3>Total Reports</h3>
+          <p class="metric" id="totalReports">0</p>
+          <small>📄 All submitted reports</small>
+        </div>
+      </div>
 
-  <div class="chart-container">
-    <canvas id="bentoTrendChart"></canvas>
-  </div>
-</section>
-
+      <div class="chart-container">
+        <canvas id="reportsChart"></canvas>
+      </div>
+    </section>
 
     <section id="users">
       <h2>👥 Manage Users</h2>
@@ -90,7 +87,7 @@
     </section>
   </main>
 
-  <script src="superadmin.css"></script>
-  
+  <script src="liveUpdates.js"></script>
+  <script src="superadmin.js"></script>
 </body>
 </html>
