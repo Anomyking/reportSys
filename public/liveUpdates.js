@@ -1,5 +1,5 @@
 // frontend/scripts/liveUpdates.js
-const socket = io("https://rp-frontend.onrender.com");
+const socket = io("https://reportsys.onrender.com");
 
 // 🟢 Create Live Status Indicator
 const indicator = document.createElement("div");

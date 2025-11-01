@@ -6,7 +6,7 @@ import { fileURLToPath } from "url";
 import http from "http";
 import { Server } from "socket.io";
 
-// 🧩 Local Imports
+// Local imports
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
@@ -21,35 +21,34 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
-// ✅ Render + Local allowed origins
+// ✅ Allowed frontend origins (local + Render domain)
 const FRONTEND_URLS = [
   "http://localhost:5500",
   "http://127.0.0.1:5500",
-  process.env.FRONTEND_URL // add this in Render env
-];
+  "https://reportsys.onrender.com",   // ✅ Your Render site
+  process.env.FRONTEND_URL
+].filter(Boolean);
 
-// ✅ CORS (simplified for deployment reliability)
+// ✅ CORS settings
 app.use(cors({
-  origin: "*",
+  origin: FRONTEND_URLS,
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
-// ✅ Initialize Socket.IO
+// ✅ Socket.io
 export const io = new Server(server, {
   cors: {
     origin: FRONTEND_URLS,
     methods: ["GET", "POST"],
-    credentials: true,
-    transports: ["websocket", "polling"],
   }
 });
 
 // ✅ Middleware
 app.use(express.json());
 
-// ✅ MongoDB Connection
+// ✅ MongoDB connection
 connectDB()
   .then(async () => {
     console.log("✅ MongoDB connected");
@@ -61,10 +60,7 @@ connectDB()
 io.on("connection", (socket) => {
   console.log(`🔌 Socket connected: ${socket.id}`);
   socket.emit("connectionStatus", { connected: true });
-
-  socket.on("disconnect", () => {
-    console.log(`❌ Socket disconnected: ${socket.id}`);
-  });
+  socket.on("disconnect", () => console.log(`❌ Socket disconnected: ${socket.id}`));
 });
 
 // ✅ API Routes
@@ -75,33 +71,28 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/superadmin", superAdminRoutes);
 
-// ✅ Health Endpoint
+// ✅ Health check
 app.get("/api/health", (req, res) => {
-  res.status(200).json({
-    status: "OK",
-    message: "Server running",
-    time: new Date().toISOString(),
-  });
+  res.json({ status: "OK", message: "Server running", time: new Date().toISOString() });
 });
 
-// ✅ Serve Frontend
+// ✅ Serve frontend
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-app.use(express.static(path.join(__dirname, "frontend")));
+const publicPath = path.join(__dirname, "public");
+app.use(express.static(publicPath));
 
+// ✅ Serve index.html for root
 app.get("/", (req, res) => {
-  res.send("Backend Server Running ✅");
+  res.sendFile(path.join(publicPath, "index.html"));
 });
 
-// ✅ 404 Fallback
-app.use((req, res) => {
-  res.status(404).json({ error: "Route not found" });
+// ✅ Catch-all for frontend routing
+app.get("*", (req, res) => {
+  res.sendFile(path.join(publicPath, "index.html"));
 });
 
-// ✅ Start Server
+// ✅ Start server
 const PORT = process.env.PORT || 5000;
-
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

@@ -1,7 +1,7 @@
 /************************************************************
  * CONFIG
  ************************************************************/
-const API_URL = "https://rp-frontend.onrender.com";
+const API_URL = "https://reportsys.onrender.com/api";
 
 /************************************************************
  * Helper Functions
@@ -30,7 +30,7 @@ if (registerForm) {
       : "user";
 
     try {
-      const res = await fetch(`${API_URL}/register`, {
+      const res = await fetch(`${API_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password, role }),
@@ -59,7 +59,7 @@ if (loginForm) {
     const password = document.getElementById("loginPassword").value.trim();
 
     try {
-      const res = await fetch(`${API_URL}/login`, {
+      const res = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -93,7 +93,7 @@ if (forgotForm) {
     const email = document.getElementById("forgotEmail").value.trim();
 
     try {
-      const res = await fetch(`${API_URL}/forgot-password`, {
+      const res = await fetch(`${API_URL}/auth/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -121,7 +121,7 @@ if (resetForm) {
     const password = document.getElementById("newPassword").value.trim();
 
     try {
-      const res = await fetch(`${API_URL}/reset-password/${token}`, {
+      const res = await fetch(`${API_URL}/auth/reset-password/${token}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
