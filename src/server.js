@@ -82,7 +82,7 @@ app.use(express.static(publicPath));
 
 app.use((req, res, next) => {
   res.setHeader(
-    "Cent-Security-Policy",
+    "Content-Security-Policy",
     "default-src 'self'; " +
     "connect-src 'self' http://localhost:5500 http://127.0.0.1:5500 ws://localhost:5500 ws://127.0.0.1:5500 https://*; " +
     "script-src 'self' 'unsafe-eval'; " +

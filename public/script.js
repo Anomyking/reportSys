@@ -88,6 +88,32 @@ if (loginForm) {
   });
 }
 
+// Example JS to handle sidebar navigation
+
+document.querySelectorAll('.sidebar nav a').forEach(link => {
+    link.addEventListener('click', function(e) {
+        e.preventDefault();
+
+        // 1. Update 'active' class
+        document.querySelector('.sidebar nav a.active').classList.remove('active');
+        this.classList.add('active');
+
+        // 2. Get the target section ID (e.g., #users)
+        const targetId = this.getAttribute('href');
+
+        // 3. Hide all sections
+        document.querySelectorAll('.content section').forEach(section => {
+            section.style.display = 'none';
+        });
+
+        // 4. Show the target section
+        const targetSection = document.querySelector(targetId);
+        if (targetSection) {
+            targetSection.style.display = 'block';
+        }
+    });
+});
+
 /************************************************************
  * DASHBOARD USERNAME + LOGOUT
  ************************************************************/
