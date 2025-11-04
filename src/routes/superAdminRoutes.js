@@ -7,6 +7,7 @@ import {
   handleAdminRequest,
   sendNotification,
 } from "../controllers/adminController.js";
+import { loadReports } from '../controllers/superAdminController.js';
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import { superAdminOnly } from "../middleware/roleMiddleware.js";
 
@@ -31,6 +32,7 @@ router.get("/admin-requests", authMiddleware, superAdminOnly, getPendingAdminReq
 // ✅ Handle admin access requests (approve/reject)
 router.post("/admin-requests/handle", authMiddleware, superAdminOnly, handleAdminRequest);
 
+router.get('/reports', loadReports);
 // ✅ Send notifications to one or all users
 router.post("/notify", authMiddleware, superAdminOnly, sendNotification);
 
