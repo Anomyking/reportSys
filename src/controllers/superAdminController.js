@@ -1,158 +1,165 @@
 import User from "../models/User.js";
 import Report from "../models/Report.js";
-import Notification from "../models/Notification.js";
+import Notification from "../models/Notification.js"; // Required for fetching system notifications
+
+// Functions accessible by ONLY 'superadmin'
+// ----------------------------------------------------------------
 
 /****************************************
- * 📊 LOAD DASHBOARD OVERVIEW
- ****************************************/
-export const loadOverview = async (req, res) => {
-  try {
-    const totalUsers = await User.countDocuments({ role: "user" });
-    const totalAdmins = await User.countDocuments({ role: "admin" });
-    const totalReports = await Report.countDocuments();
-
-    const reportStatsArray = await Report.aggregate([
-      { $group: { _id: "$status", count: { $sum: 1 } } },
-    ]);
-
-    const reportStats = reportStatsArray.reduce((acc, item) => {
-      acc[item._id] = item.count;
-      return acc;
-    }, {});
-
-    res.json({
-      users: totalUsers,
-      admins: totalAdmins,
-      reports: totalReports,
-      reportStats,
-    });
-
-  } catch (err) {
-    console.error("Error in loadOverview:", err);
-    res.status(500).json({ message: "Server error loading dashboard overview." });
-  }
-};
-
-/****************************************
- * 👥 GET ALL USERS
+ * 👥 GET ALL USERS (Superadmin only)
  ****************************************/
 export const getAllUsers = async (req, res) => {
-  try {
-    const users = await User.find().select("-password");
-    res.json(users);
-  } catch (err) {
-    console.error("Error in getAllUsers:", err);
-    res.status(500).json({ message: "Server error fetching users." });
-  }
+    try {
+        // Fetches all users, excluding sensitive fields
+        const users = await User.find().select("-password -resetPasswordToken -resetPasswordExpire");
+        res.json(users);
+    } catch (err) {
+        console.error("Error in getAllUsers:", err);
+        res.status(500).json({ message: "Server error fetching users." });
+    }
 };
 
 /****************************************
- * 🛠️ UPDATE USER ROLE
+ * 🛠️ UPDATE USER ROLE (Superadmin only)
  ****************************************/
 export const updateUserRole = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { role, department } = req.body;
-    const allowedRoles = ["user", "admin", "superadmin"];
+    try {
+        const { id } = req.params;
+        const { role, department } = req.body;
+        const allowedRoles = ["user", "admin", "superadmin"];
 
-    if (role && !allowedRoles.includes(role)) {
-      return res.status(400).json({ message: "Invalid role provided." });
-    }
+        if (role && !allowedRoles.includes(role)) {
+            return res.status(400).json({ message: "Invalid role provided." });
+        }
 
-    const user = await User.findById(id);
-    if (!user) return res.status(404).json({ message: "User not found." });
+        const user = await User.findById(id);
+        if (!user) return res.status(404).json({ message: "User not found." });
 
-    // Prevent superadmin from demoting themselves
-    if (user._id.toString() === req.user.id && role !== "superadmin") {
-      return res.status(403).json({
-        message: "❌ You cannot change your own superadmin role.",
-      });
-    }
+        // Safeguard 1: Prevent superadmin from demoting themselves 
+        if (user._id.toString() === req.user.id && role && role !== "superadmin") {
+            return res.status(403).json({
+                message: "❌ You cannot change your own superadmin role.",
+            });
+        }
 
-    // Prevent removing last superadmin
-    if (user.role === "superadmin" && role !== "superadmin") {
-      const superAdminCount = await User.countDocuments({ role: "superadmin" });
-      if (superAdminCount <= 1) {
-        return res.status(400).json({
-          message: "❌ Cannot demote the last superadmin.",
+        // Safeguard 2: Prevent removing the last superadmin
+        if (user.role === "superadmin" && role && role !== "superadmin") {
+            const superAdminCount = await User.countDocuments({ role: "superadmin" });
+            if (superAdminCount <= 1) {
+                return res.status(400).json({
+                    message: "❌ Cannot demote the last superadmin.",
+                });
+            }
+        }
+
+        user.role = role || user.role;
+        user.department = department || user.department;
+        await user.save();
+
+        // Notify user of role change
+        if (role) {
+            user.notifications.push({
+                message: `Your role has been updated to ${role} by a superadmin.`,
+            });
+            await user.save();
+        }
+
+        res.json({
+            message: `✅ User updated to ${user.role}`,
+            user: { id: user._id, name: user.name, role: user.role, department: user.department },
         });
-      }
+
+    } catch (err) {
+        console.error("Error in updateUserRole:", err);
+        res.status(500).json({ message: "Server error updating user role." });
     }
-
-    user.role = role || user.role;
-    user.department = department || user.department;
-    await user.save();
-
-    res.json({
-      message: `✅ User updated to ${user.role}`,
-      user,
-    });
-
-  } catch (err) {
-    console.error("Error in updateUserRole:", err);
-    res.status(500).json({ message: "Server error updating user role." });
-  }
 };
 
 /****************************************
- * 📁 GET ALL REPORTS
+ * ❓ GET PENDING ADMIN REQUESTS
  ****************************************/
-export const loadReports = async (req, res) => {
-  try {
-    const reports = await Report.find()
-      .populate("user", "name email")
-      .sort({ createdAt: -1 });
-
-    res.json({ data: reports });
-  } catch (err) {
-    console.error("Error in loadReports:", err);
-    res.status(500).json({ message: "Server error fetching reports." });
-  }
+export const getPendingAdminRequests = async (req, res) => {
+    try {
+        const requests = await User.find({ adminRequest: "pending" }).select(
+            "name email department adminRequest"
+        );
+        res.json(requests);
+    } catch (err) {
+        console.error("Error in getPendingAdminRequests:", err);
+        res.status(500).json({ message: "Server error fetching admin requests." });
+    }
 };
 
 /****************************************
- * ✅ UPDATE REPORT STATUS
+ * ⚙️ HANDLE ADMIN REQUESTS (Approve/Reject)
  ****************************************/
-export const updateReportStatus = async (req, res) => {
-  try {
-    const { reportId } = req.params;
-    const { status } = req.body;
+export const handleAdminRequest = async (req, res) => {
+    try {
+        const { userId, action } = req.body; // action = 'approve' | 'reject'
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: "User not found." });
 
-    const allowedStatus = ["Approved", "Rejected", "Pending"];
-    if (!allowedStatus.includes(status)) {
-      return res.status(400).json({ message: "Invalid status provided." });
+        if (action === "approve") {
+            user.role = "admin";
+            user.adminRequest = "approved";
+            user.notifications.push({
+                message: "✅ Your request to become an admin has been approved.",
+            });
+        } else if (action === "reject") {
+            user.adminRequest = "rejected";
+            user.notifications.push({
+                message: "❌ Your request to become an admin has been rejected.",
+            });
+        } else {
+            return res.status(400).json({ message: "Invalid action." });
+        }
+
+        await user.save();
+        res.json({ message: `Request ${action}ed successfully.` });
+    } catch (err) {
+        console.error("handleAdminRequest error:", err);
+        res.status(500).json({ message: "Failed to handle admin request." });
     }
-
-    const report = await Report.findByIdAndUpdate(
-      reportId,
-      { status },
-      { new: true }
-    );
-
-    if (!report) {
-      return res.status(404).json({ message: "Report not found." });
-    }
-
-    res.json({
-      message: `✅ Report status updated to ${report.status}`,
-      report,
-    });
-
-  } catch (err) {
-    console.error("Error in updateReportStatus:", err);
-    res.status(500).json({ message: "Server error updating report status." });
-  }
 };
 
 /****************************************
- * 🔔 GET ALL NOTIFICATIONS (Super Admin)
+ * 📢 SEND NOTIFICATION (To all or specific user)
+ ****************************************/
+export const sendNotification = async (req, res) => {
+    try {
+        const { userId, message } = req.body;
+
+        if (!message) return res.status(400).json({ message: "Message is required." });
+
+        if (userId === "all") {
+            // Push notification to all users' notification arrays
+            await User.updateMany({}, { $push: { notifications: { message } } });
+            return res.json({ message: "✅ Notification sent to all users." });
+        }
+
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: "User not found." });
+
+        user.notifications.push({ message });
+        await user.save();
+
+        res.json({ message: `✅ Notification sent to ${user.name}.` });
+    } catch (err) {
+        console.error("sendNotification error:", err);
+        res.status(500).json({ message: "Failed to send notification." });
+    }
+};
+
+/****************************************
+ * 🔔 GET ALL NOTIFICATIONS (Super Admin - System-wide view)
  ****************************************/
 export const getNotifications = async (req, res) => {
-  try {
-    const notifications = await Notification.find().sort({ createdAt: -1 });
-    res.json({ data: notifications });
-  } catch (err) {
-    console.error("Error loading notifications:", err);
-    res.status(500).json({ message: "Server error loading notifications." });
-  }
+    try {
+        // Fetches system-level notifications
+        const notifications = await Notification.find().sort({ createdAt: -1 });
+        res.json(notifications);
+    } catch (err) {
+        console.error("Error loading notifications:", err);
+        res.status(500).json({ message: "Server error loading notifications." });
+    }
 };
