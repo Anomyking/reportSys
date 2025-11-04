@@ -1,26 +1,30 @@
 // backend/routes/adminRoutes.js
 import express from "express";
-import { authMiddleware } from "../middleware/authMiddleware.js";
-import { adminOrSuperAdmin, superAdminOnly } from "../middleware/roleMiddleware.js";
+import { protect, authorize } from "../middleware/authMiddleware.js";
 import { updateAdminSummary } from "../controllers/reportController.js";
 
 const router = express.Router();
 
-/************************************************************
- * 🔹 Update Report Summary (Admin/Superadmin only)
- ************************************************************/
+/**
+ * Update Report Summary (Admin/Superadmin only)
+ */
 router.put(
   "/reports/:id/summary",
-  authMiddleware,
-  adminOrSuperAdmin,
+  protect,
+  authorize("admin", "superadmin"),
   updateAdminSummary
 );
 
-/************************************************************
- * 🔹 Example: Admin Dashboard Overview (optional test route)
- ************************************************************/
-router.get("/overview", authMiddleware, adminOrSuperAdmin, (req, res) => {
-  res.json({ message: "✅ Admin routes working!" });
-});
+/**
+ * Admin Dashboard Test Route
+ */
+router.get(
+  "/overview",
+  protect,
+  authorize("admin", "superadmin"),
+  (req, res) => {
+    res.json({ message: "✅ Admin routes working!" });
+  }
+);
 
 export default router;

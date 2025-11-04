@@ -1,21 +1,38 @@
+// src/routes/authRoutes.js
 import express from "express";
+import { protect } from "../middleware/authMiddleware.js";
 import {
   registerUser,
   loginUser,
   getProfile,
   forgotPassword,
-  resetPassword,
+  resetPassword
 } from "../controllers/authController.js";
-import { authMiddleware } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.post("/register", registerUser);
-router.post("/login", loginUser);
-router.get("/me", authMiddleware, getProfile);
+/************************************************************
+ * 👤 Public Routes (No Auth Required)
+ ************************************************************/
 
-// ✅ New password reset routes
+// Register new user
+router.post("/register", registerUser);
+
+// Login user
+router.post("/login", loginUser);
+
+// Initiate password reset
 router.post("/forgot-password", forgotPassword);
-router.post("/reset-password/:token", resetPassword);
+
+// Reset password using token
+router.put("/reset-password/:token", resetPassword);
+
+
+/************************************************************
+ * 🔒 Protected Routes (Auth Required)
+ ************************************************************/
+
+// Get user profile
+router.get("/profile", protect, getProfile);
 
 export default router;

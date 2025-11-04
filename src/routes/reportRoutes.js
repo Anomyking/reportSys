@@ -1,6 +1,6 @@
 // backend/routes/reportRoutes.js
 import express from "express";
-import { authMiddleware } from "../middleware/authMiddleware.js";
+import { protect, authorize } from "../middleware/authMiddleware.js";
 import {
   createReport,
   getReports,
@@ -9,22 +9,37 @@ import {
   updateAdminSummary,
 } from "../controllers/reportController.js";
 
-
 const router = express.Router();
 
-// 🔹 Create new report (user)
-router.post("/", authMiddleware, createReport);
+/************************************************************
+ * 📨 Report Routes
+ ************************************************************/
 
-// 🔹 Get all reports (user sees own, admin sees all)
-router.get("/", authMiddleware, getReports);
+// ✅ Create new report (User)
+router.post("/", protect, createReport);
 
-// 🔹 Filter reports by category or status
-router.get("/filter", authMiddleware, getReportsByCategory);
+// ✅ Get reports
+// - Users see only their reports
+// - Admin/Superadmin see all reports
+router.get("/", protect, getReports);
 
-// 🔹 Update report status (admin/superadmin)
-router.put("/:id/status", authMiddleware, updateStatus);
+// ✅ Filter reports by category or status
+router.get("/filter", protect, getReportsByCategory);
 
-// 🔹 Admin updates report summary (financial/sales/inventory data)
-router.put("/:id/summary", authMiddleware, updateAdminSummary);
+// ✅ Admin/Superadmin update report status
+router.put(
+  "/:id/status",
+  protect,
+  authorize("admin", "superadmin"),
+  updateStatus
+);
+
+// ✅ Admin/Superadmin update report summary (financial, sales, etc.)
+router.put(
+  "/:id/summary",
+  protect,
+  authorize("admin", "superadmin"),
+  updateAdminSummary
+);
 
 export default router;

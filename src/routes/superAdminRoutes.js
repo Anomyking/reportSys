@@ -1,39 +1,50 @@
-import express from "express";
-import {
-  getOverview,
-  getAllUsers,
-  updateUserRole,
-  getPendingAdminRequests,
-  handleAdminRequest,
-  sendNotification,
-} from "../controllers/adminController.js";
-import { loadReports } from '../controllers/superAdminController.js';
-import { authMiddleware } from "../middleware/authMiddleware.js";
-import { superAdminOnly } from "../middleware/roleMiddleware.js";
+// src/routes/superAdminRoutes.js
+
+import express from 'express';
+import { protect, authorize } from '../middleware/authMiddleware.js';
+import { 
+    loadOverview, 
+    getAllUsers, 
+    updateUserRole, 
+    loadReports, 
+    updateReportStatus,
+    getNotifications
+} from '../controllers/superAdminController.js';
 
 const router = express.Router();
 
 /************************************************************
- * 🔹 SUPERADMIN DASHBOARD ROUTES
+ * 🔐 Authentication & Role Check (Superadmin only)
  ************************************************************/
+router.use(protect);
+router.use(authorize('superadmin'));
 
-// ✅ Get system overview (users, reports, stats)
-router.get("/overview", authMiddleware, superAdminOnly, getOverview);
+/************************************************************
+ * 📊 Dashboard Overview
+ * GET /api/superadmin/overview
+ ************************************************************/
+router.get('/overview', loadOverview);
 
-// ✅ Get all users
-router.get("/users", authMiddleware, superAdminOnly, getAllUsers);
+/************************************************************
+ * 👥 User Management
+ * GET /api/superadmin/users
+ * PUT /api/superadmin/role/:id
+ ************************************************************/
+router.get('/users', getAllUsers);
+router.put('/role/:id', updateUserRole);
 
-// ✅ Update user role
-router.put("/role/:id", authMiddleware, superAdminOnly, updateUserRole);
-
-// ✅ Get pending admin requests
-router.get("/admin-requests", authMiddleware, superAdminOnly, getPendingAdminRequests);
-
-// ✅ Handle admin access requests (approve/reject)
-router.post("/admin-requests/handle", authMiddleware, superAdminOnly, handleAdminRequest);
-
+/************************************************************
+ * 📨 Report Management
+ * GET /api/superadmin/reports
+ * PUT /api/superadmin/reports/:reportId
+ ************************************************************/
 router.get('/reports', loadReports);
-// ✅ Send notifications to one or all users
-router.post("/notify", authMiddleware, superAdminOnly, sendNotification);
+router.put('/reports/:reportId', updateReportStatus);
+
+/************************************************************
+ * 🔔 Notification Management
+ * GET /api/superadmin/notifications
+ ************************************************************/
+router.get('/notifications', getNotifications);
 
 export default router;

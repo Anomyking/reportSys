@@ -1,6 +1,6 @@
 // backend/routes/userRoutes.js
 import express from "express";
-import { authMiddleware } from "../middleware/authMiddleware.js";
+import { protect } from "../middleware/authMiddleware.js";
 import {
   requestAdminAccess,
   getNotifications,
@@ -14,22 +14,22 @@ import {
 
 const router = express.Router();
 
-/************************************************************
- * 🔹 ADMIN ACCESS REQUEST
- ************************************************************/
-router.post("/request-admin", authMiddleware, requestAdminAccess);
+/**
+ * Request admin access
+ */
+router.post("/request-admin", protect, requestAdminAccess);
 
-/************************************************************
- * 🔹 REPORT MANAGEMENT (User)
- ************************************************************/
-router.post("/reports", authMiddleware, createReport);
-router.get("/reports", authMiddleware, getReports);
-router.get("/reports/filter", authMiddleware, getReportsByCategory);
+/**
+ * User report management
+ */
+router.post("/reports", protect, createReport);
+router.get("/reports", protect, getReports);
+router.get("/reports/filter", protect, getReportsByCategory);
 
-/************************************************************
- * 🔹 USER NOTIFICATIONS
- ************************************************************/
-router.get("/notifications", authMiddleware, getNotifications);
-router.put("/notifications/:id/read", authMiddleware, markNotificationAsRead);
+/**
+ * User notifications
+ */
+router.get("/notifications", protect, getNotifications);
+router.put("/notifications/:id/read", protect, markNotificationAsRead);
 
 export default router;
