@@ -207,7 +207,7 @@ window.updateReportStatus = async function(reportId, status) {
 };
 
 /* ----------------- MANUAL SUMMARY FORM ------------------ */
-// ✅ FIX: Added check for the placeholder ID value
+// ✅ FIX: Simplified ID validation as the backend will now handle the CastError gracefully
 async function handleManualSummaryForm(e) {
     e.preventDefault();
 
@@ -217,9 +217,11 @@ async function handleManualSummaryForm(e) {
     const inventoryValue = parseFloat(document.getElementById("inventoryValue").value) || 0;
     const notes = document.getElementById("notes").value.trim();
 
-    // 🛑 CRITICAL FIX: Prevent sending the literal 'new' placeholder as an ID.
-    if (!id || id.toLowerCase() === "new" || id.length < 24) 
-        return showAlert("⚠️ Please enter a valid 24-character Report ID to update its summary.");
+    // 🛑 SIMPLIFIED CHECK: Only verify ID exists and isn't the placeholder 'new'. 
+    // The backend now handles the strict format check and returns a 400.
+    if (!id || id.toLowerCase() === "new") { 
+        return showAlert("⚠️ Please enter a Report ID to update its summary.");
+    }
 
     try {
         // Uses consolidated /admin route for updating summary

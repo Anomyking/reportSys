@@ -44,6 +44,8 @@ export const getOverview = async (req, res) => {
 export const getDepartmentReports = async (req, res) => {
     try {
         const requestingUser = await User.findById(req.user.id).select("role department");
+        // This findById needs to be in a try/catch, but for simplicity we'll assume the protect middleware 
+        // handles the user ID validity. If the ID is invalid, it should be caught here:
         if (!requestingUser) return res.status(404).json({ message: "Admin not found." });
 
         const query = {};
@@ -62,6 +64,10 @@ export const getDepartmentReports = async (req, res) => {
         res.json(reports);
     } catch (err) {
         console.error("getDepartmentReports error:", err);
+        // Added CastError check here for safety, though the token payload should be validated in middleware
+        if (err.name === 'CastError' && err.path === '_id') {
+            return res.status(401).json({ message: "Invalid user token/ID format." });
+        }
         res.status(500).json({ message: "Failed to fetch reports." });
     }
 };
@@ -105,6 +111,10 @@ export const updateReportStatus = async (req, res) => {
         res.json({ message: `Report marked as ${status}`, report });
     } catch (err) {
         console.error("updateReportStatus error:", err);
+        // Added CastError check for report ID
+        if (err.name === 'CastError' && err.path === '_id') {
+            return res.status(400).json({ message: "Invalid Report ID format." });
+        }
         res.status(500).json({ message: "Failed to update report status." });
     }
 };
@@ -141,7 +151,13 @@ export const updateAdminSummary = async (req, res) => {
         res.json({ message: "Admin summary updated successfully", report });
     } catch (err) {
         console.error("updateAdminSummary error:", err);
-        res.status(500).json({ message: "Failed to update admin summary." });
+        
+        // ✅ CRITICAL FIX: Gracefully handle the CastError (invalid ID format)
+        if (err.name === 'CastError' && err.path === '_id') {
+            return res.status(400).json({ message: "Invalid Report ID format. Must be a valid 24-character ID." });
+        }
+        
+        res.status(500).json({ message: "Failed to update admin summary due to server issue." });
     }
 };
 
@@ -202,6 +218,10 @@ export const updateUserRole = async (req, res) => {
         res.json({ message: `User role updated to ${role}.`, user });
     } catch (err) {
         console.error("updateUserRole error:", err);
+        // Added CastError check for user ID
+        if (err.name === 'CastError' && err.path === '_id') {
+            return res.status(400).json({ message: "Invalid User ID format." });
+        }
         res.status(500).json({ message: "Failed to update user role." });
     }
 };
