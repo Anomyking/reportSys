@@ -1,10 +1,10 @@
-// backend/controllers/superAdminController.js
 import User from "../models/User.js";
 import Report from "../models/Report.js";
+import Notification from "../models/Notification.js";
 
-/************************************************************
- * 📊 LOAD OVERVIEW
- ************************************************************/
+/****************************************
+ * 📊 LOAD DASHBOARD OVERVIEW
+ ****************************************/
 export const loadOverview = async (req, res) => {
   try {
     const totalUsers = await User.countDocuments({ role: "user" });
@@ -26,15 +26,16 @@ export const loadOverview = async (req, res) => {
       reports: totalReports,
       reportStats,
     });
+
   } catch (err) {
     console.error("Error in loadOverview:", err);
     res.status(500).json({ message: "Server error loading dashboard overview." });
   }
 };
 
-/************************************************************
+/****************************************
  * 👥 GET ALL USERS
- ************************************************************/
+ ****************************************/
 export const getAllUsers = async (req, res) => {
   try {
     const users = await User.find().select("-password");
@@ -45,14 +46,13 @@ export const getAllUsers = async (req, res) => {
   }
 };
 
-/************************************************************
+/****************************************
  * 🛠️ UPDATE USER ROLE
- ************************************************************/
+ ****************************************/
 export const updateUserRole = async (req, res) => {
   try {
     const { id } = req.params;
     const { role, department } = req.body;
-
     const allowedRoles = ["user", "admin", "superadmin"];
 
     if (role && !allowedRoles.includes(role)) {
@@ -62,9 +62,11 @@ export const updateUserRole = async (req, res) => {
     const user = await User.findById(id);
     if (!user) return res.status(404).json({ message: "User not found." });
 
-    // Prevent superadmin demoting themselves accidentally
+    // Prevent superadmin from demoting themselves
     if (user._id.toString() === req.user.id && role !== "superadmin") {
-      return res.status(403).json({ message: "❌ You cannot change your own superadmin role." });
+      return res.status(403).json({
+        message: "❌ You cannot change your own superadmin role.",
+      });
     }
 
     // Prevent removing last superadmin
@@ -81,16 +83,20 @@ export const updateUserRole = async (req, res) => {
     user.department = department || user.department;
     await user.save();
 
-    res.json({ message: `✅ User updated to ${user.role}`, user });
+    res.json({
+      message: `✅ User updated to ${user.role}`,
+      user,
+    });
+
   } catch (err) {
     console.error("Error in updateUserRole:", err);
     res.status(500).json({ message: "Server error updating user role." });
   }
 };
 
-/************************************************************
+/****************************************
  * 📁 GET ALL REPORTS
- ************************************************************/
+ ****************************************/
 export const loadReports = async (req, res) => {
   try {
     const reports = await Report.find()
@@ -104,9 +110,9 @@ export const loadReports = async (req, res) => {
   }
 };
 
-/************************************************************
+/****************************************
  * ✅ UPDATE REPORT STATUS
- ************************************************************/
+ ****************************************/
 export const updateReportStatus = async (req, res) => {
   try {
     const { reportId } = req.params;
@@ -131,18 +137,22 @@ export const updateReportStatus = async (req, res) => {
       message: `✅ Report status updated to ${report.status}`,
       report,
     });
+
   } catch (err) {
     console.error("Error in updateReportStatus:", err);
     res.status(500).json({ message: "Server error updating report status." });
   }
 };
-// ✅ Get notifications (Super Admin)
+
+/****************************************
+ * 🔔 GET ALL NOTIFICATIONS (Super Admin)
+ ****************************************/
 export const getNotifications = async (req, res) => {
   try {
     const notifications = await Notification.find().sort({ createdAt: -1 });
     res.json({ data: notifications });
-  } catch (error) {
-    console.error("Error loading notifications:", error);
+  } catch (err) {
+    console.error("Error loading notifications:", err);
     res.status(500).json({ message: "Server error loading notifications." });
   }
 };
