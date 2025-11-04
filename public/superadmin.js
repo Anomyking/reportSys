@@ -1,24 +1,20 @@
-/*******************************
+/****************************************
  * SUPERADMIN DASHBOARD
- *******************************/
+ ****************************************/
 const API_URL = window.CONFIG.API_URL;
 const token = localStorage.getItem("token");
 const userRole = localStorage.getItem("role");
 
-// Redirect if no token or wrong role
 if (!token || userRole !== "superadmin") {
   localStorage.clear();
   window.location.href = "/login.html";
 }
 
 function showAlert(msg) {
-  alert(msg);
+  console.error("Dashboard:", msg);
 }
 
-function formatDate(dateString) {
-  const date = new Date(dateString);
-  return date.toLocaleString();
-}
+const formatDate = (date) => new Date(date).toLocaleString();
 
 function getRoleBadge(role) {
   const colors = {
@@ -26,9 +22,37 @@ function getRoleBadge(role) {
     admin: "#CF0F47",
     user: "#777",
   };
-  return `<span style="background:${colors[role]}; color:#fff; padding:4px 8px; border-radius:6px; font-size:0.8rem;">${role}</span>`;
+
+  return `
+    <span style="
+      background:${colors[role]};
+      color:#fff;
+      padding:4px 8px;
+      border-radius:6px;
+      font-size:0.8rem;">
+      ${role}
+    </span>`;
 }
 
+/****************************************
+ * Error Handler
+ ****************************************/
+async function handleResponseError(res) {
+  let message = `Request failed (Status: ${res.status})`;
+
+  try {
+    const data = await res.json();
+    message = data.message || message;
+  } catch {
+    message = `Internal Server Error (${res.status})`;
+  }
+
+  throw new Error(message);
+}
+
+/****************************************
+ * INIT
+ ****************************************/
 document.addEventListener("DOMContentLoaded", () => {
   loadOverview();
   loadAllUsers();
@@ -36,16 +60,17 @@ document.addEventListener("DOMContentLoaded", () => {
   loadNotifications();
 });
 
-/*******************************
- * LOAD OVERVIEW
- *******************************/
+/****************************************
+ * OVERVIEW
+ ****************************************/
 async function loadOverview() {
   try {
     const res = await fetch(`${API_URL}/superadmin/overview`, {
       headers: { Authorization: `Bearer ${token}` },
     });
+
+    if (!res.ok) throw await handleResponseError(res);
     const data = await res.json();
-    if (!res.ok) throw new Error(data.message);
 
     document.getElementById("totalUsers").textContent = data.users || 0;
     document.getElementById("totalAdmins").textContent = data.admins || 0;
@@ -53,46 +78,43 @@ async function loadOverview() {
 
     renderChart(data.reportStats);
   } catch (err) {
-    showAlert("Error loading overview: " + err.message);
+    showAlert(err.message);
   }
 }
 
-/*******************************
- * LOAD ALL USERS
- *******************************/
+/****************************************
+ * USERS
+ ****************************************/
 async function loadAllUsers() {
-  const usersTable = document.getElementById("usersTable");
-  if (!usersTable) return;
+  const table = document.getElementById("usersTable");
+  if (!table) return;
+  table.innerHTML = `<tr><td colspan="4" style="text-align:center;">Loading...</td></tr>`;
 
   try {
     const res = await fetch(`${API_URL}/superadmin/users`, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    if (!res.ok) throw new Error((await res.json()).message);
-
+    if (!res.ok) throw await handleResponseError(res);
     const users = await res.json();
 
-    usersTable.innerHTML = users
-      .map(
-        (u) => `
+    table.innerHTML = users.length
+      ? users.map((u) => `
         <tr>
           <td>${u.name}</td>
           <td>${u.email}</td>
           <td>${getRoleBadge(u.role)}</td>
           <td>
-            ${
-              u.role !== "superadmin"
-                ? `
-              <button class="promote-btn" data-id="${u._id}" data-role="admin">Promote</button>
-              <button class="demote-btn" data-id="${u._id}" data-role="user">Demote</button>
-            `
-                : `—`
-            }
+            ${u.role !== "superadmin"
+              ? `
+                <button class="promote-btn" data-id="${u._id}" data-role="admin">Promote</button>
+                <button class="demote-btn" data-id="${u._id}" data-role="user">Demote</button>
+              `
+              : "—"}
           </td>
         </tr>`
-      )
-      .join("");
+      ).join("")
+      : `<tr><td colspan="4" style="text-align:center;">No users found.</td></tr>`;
 
     document.querySelectorAll(".promote-btn").forEach((btn) =>
       btn.addEventListener("click", () =>
@@ -105,85 +127,75 @@ async function loadAllUsers() {
         updateUserRole(btn.dataset.id, btn.dataset.role)
       )
     );
+
   } catch (err) {
-    usersTable.innerHTML = `<tr><td colspan="4" style="color:red;">${err.message}</td></tr>`;
+    table.innerHTML = `<tr><td colspan="4" style="color:red;">Error: ${err.message}</td></tr>`;
+    showAlert(err.message);
   }
 }
 
-/*******************************
- * UPDATE USER ROLE
- *******************************/
-async function updateUserRole(userId, newRole) {
+async function updateUserRole(id, role) {
   try {
-    const res = await fetch(`${API_URL}/superadmin/role/${userId}`, {
+    const res = await fetch(`${API_URL}/superadmin/role/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ role: newRole }),
+      body: JSON.stringify({ role }),
     });
 
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message);
-
-    showAlert(`Role updated to ${newRole}`);
+    if (!res.ok) throw await handleResponseError(res);
+    showAlert(`Role updated to ${role}`);
     loadAllUsers();
   } catch (err) {
     showAlert(err.message);
   }
 }
 
-/*******************************
- * LOAD REPORTS
- *******************************/
+/****************************************
+ * REPORTS
+ ****************************************/
 async function loadReports() {
-  const reportsContainer = document.getElementById("reportsContainer");
-  if (!reportsContainer) return;
+  const container = document.getElementById("reportsContainer");
+  if (!container) return;
+  container.innerHTML = `<p>Loading...</p>`;
 
   try {
     const res = await fetch(`${API_URL}/superadmin/reports`, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    if (!res.ok) throw new Error((await res.json()).message);
-
+    if (!res.ok) throw await handleResponseError(res);
     let reports = await res.json();
     if (reports.data) reports = reports.data;
 
-    reportsContainer.innerHTML = reports.length
-      ? reports
-          .map(
-            (r) => `
+    container.innerHTML = reports.length
+      ? reports.map((r) => `
         <div class="report-card">
           <h3>${r.title}</h3>
           <p>${r.description}</p>
           <p><strong>Category:</strong> ${r.category}</p>
           <p><strong>Status:</strong> ${r.status}</p>
           <p><small>By: ${r.user?.name || "Unknown"}</small></p>
-          ${
-            r.status === "Pending"
-              ? `
+
+          ${r.status === "Pending" ? `
             <button onclick="updateReportStatus('${r._id}','Approved')">Approve</button>
             <button onclick="updateReportStatus('${r._id}','Rejected')">Reject</button>
-          `
-              : ""
-          }
+          ` : ""}
         </div>`
-          )
-          .join("")
+      ).join("")
       : "<p>No reports available.</p>";
+
   } catch (err) {
-    reportsContainer.innerHTML = `<p style="color:red;">${err.message}</p>`;
+    container.innerHTML = `<p style="color:red;">Error: ${err.message}</p>`;
+    showAlert(err.message);
   }
 }
 
-/*******************************
- * UPDATE REPORT STATUS
- *******************************/
-window.updateReportStatus = async function (reportId, status) {
+window.updateReportStatus = async function (id, status) {
   try {
-    const res = await fetch(`${API_URL}/superadmin/reports/${reportId}`, {
+    const res = await fetch(`${API_URL}/superadmin/reports/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -192,7 +204,7 @@ window.updateReportStatus = async function (reportId, status) {
       body: JSON.stringify({ status }),
     });
 
-    if (!res.ok) throw new Error((await res.json()).message);
+    if (!res.ok) throw await handleResponseError(res);
 
     showAlert(`Report ${status}`);
     loadReports();
@@ -202,52 +214,46 @@ window.updateReportStatus = async function (reportId, status) {
   }
 };
 
-/*******************************
- * LOAD NOTIFICATIONS
- *******************************/
+/****************************************
+ * NOTIFICATIONS
+ ****************************************/
 async function loadNotifications() {
-  const notificationsList = document.getElementById("notificationsList");
-  if (!notificationsList) return;
+  const box = document.getElementById("notificationsList");
+  if (!box) return;
+  box.innerHTML = `<p>Loading...</p>`;
 
   try {
     const res = await fetch(`${API_URL}/superadmin/notifications`, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    if (!res.ok) throw new Error((await res.json()).message);
-
+    if (!res.ok) throw await handleResponseError(res);
     let notes = await res.json();
     if (notes.data) notes = notes.data;
 
-    notificationsList.innerHTML = notes.length
-      ? notes
-          .map(
-            (n) => `
-        <div class="notification ${n.read ? "read" : "unread"}">
+    box.innerHTML = notes.length
+      ? notes.map((n) => `
+        <div class="notification ${n.read ? "" : "unread"}">
           <p>${n.message}</p>
           <small>${formatDate(n.date)}</small>
         </div>`
-          )
-          .join("")
+      ).join("")
       : "<p>No notifications.</p>";
+
   } catch (err) {
-    notificationsList.innerHTML = `<p style="color:red;">${err.message}</p>`;
+    box.innerHTML = `<p style="color:red;">Error: ${err.message}</p>`;
+    showAlert(err.message);
   }
 }
 
-/*******************************
- * CHART.JS
- *******************************/
+/****************************************
+ * CHART
+ ****************************************/
 function renderChart(stats) {
   const ctx = document.getElementById("reportsChart");
   if (!ctx) return;
 
-  const data = [
-    stats.Pending || 0,
-    stats.Approved || 0,
-    stats.Rejected || 0,
-  ];
-
+  const data = [stats.Pending || 0, stats.Approved || 0, stats.Rejected || 0];
   if (ctx._chartInstance) ctx._chartInstance.destroy();
 
   ctx._chartInstance = new Chart(ctx, {
@@ -259,9 +265,9 @@ function renderChart(stats) {
   });
 }
 
-/*******************************
+/****************************************
  * LOGOUT
- *******************************/
+ ****************************************/
 document.getElementById("logoutBtn")?.addEventListener("click", () => {
   localStorage.clear();
   window.location.href = "/login.html";

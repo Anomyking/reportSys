@@ -1,118 +1,141 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Super Admin Dashboard | Report Portal</title>
-
-  <link rel="stylesheet" href="dashboard.css" />
-  <script src="config.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Admin Dashboard</title>
+    <!-- Link to the separate CSS file -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Load Tailwind CSS for utility classes -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for Icons -->
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
 </head>
-
 <body>
-  <!-- Sidebar -->
-  <aside class="sidebar">
-    <h2>⚙️ Super Admin</h2>
-    <nav>
-      <a class="active" data-section="overview">📊 Overview</a>
-      <a data-section="users">👥 Manage Users</a>
-      <a data-section="reports">📝 Reports</a>
-      <a data-section="notifications">🔔 Notifications</a>
-    </nav>
-    <a id="logoutBtn" class="logout">🚪 Logout</a>
-  </aside>
 
-  <!-- Main -->
-  <main class="content">
+    <!-- Sidebar Navigation -->
+    <!-- The 'open' class will be toggled on this element by the hamburger menu -->
+    <div class="sidebar" id="sidebar">
+        <h2>ReportSys Admin</h2>
+        <nav>
+            <a href="#" class="active"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+            <a href="#"><i class="fas fa-users"></i> Manage Users</a>
+            <a href="#"><i class="fas fa-file-alt"></i> Reports (All)</a>
+            <a href="#"><i class="fas fa-bell"></i> Notifications</a>
+        </nav>
+        <a href="#" class="logout">Logout</a>
+    </div>
 
-    <!-- Overview -->
-    <section id="overview" class="active">
-      <h2>📈 Overview</h2>
+    <!-- Main Content Area -->
+    <div class="content">
+        <!-- Header -->
+        <header>
+            <h1 class="text-xl">Welcome back, Super Admin!</h1>
+            
+            <div class="flex items-center space-x-4">
+                <!-- Hamburger Menu Button (Visible on Mobile) -->
+                <button class="hamburger" id="hamburger-menu" aria-label="Toggle Navigation">
+                    <i class="fas fa-bars"></i>
+                </button>
+                
+                <div id="liveStatus">
+                    <div id="liveDot" style="background: #2ecc71;"></div>
+                    LIVE
+                </div>
+            </div>
+        </header>
 
-      <div class="bento-grid">
-        <div class="bento-card">
-          <h3>Total Users</h3>
-          <p class="metric" id="totalUsers">0</p>
-          <small>👥 All registered users</small>
-        </div>
+        <!-- Overview Section (Using Bento Grid) -->
+        <section id="dashboard-overview">
+            <h3 class="text-xl font-semibold mb-4 text-gray-700">System Overview</h3>
+            <div class="bento-grid">
+                <!-- Card 1: Total Users -->
+                <div class="bento-card">
+                    <h3>Total Users</h3>
+                    <div class="metric">1,245</div>
+                    <small>Registered users in the system.</small>
+                </div>
+                <!-- Card 2: Total Admins -->
+                <div class="bento-card">
+                    <h3>Active Admins</h3>
+                    <div class="metric">12</div>
+                    <small>Staff with administrative access.</small>
+                </div>
+                <!-- Card 3: Total Reports -->
+                <div class="bento-card">
+                    <h3>Total Reports</h3>
+                    <div class="metric">4,019</div>
+                    <small>All time reports submitted.</small>
+                </div>
+                <!-- Card 4: Pending Reports -->
+                <div class="bento-card" style="border-left: 5px solid var(--secondary); border: 1px solid rgba(255, 255, 255, 0.4);">
+                    <h3>Reports Pending</h3>
+                    <div class="metric" style="color: var(--secondary);">87</div>
+                    <small>Awaiting approval/rejection.</small>
+                </div>
+            </div>
+        </section>
 
-        <div class="bento-card">
-          <h3>Total Admins</h3>
-          <p class="metric" id="totalAdmins">0</p>
-          <small>🛡️ Admin & superadmin users</small>
-        </div>
+        <!-- Reports Section -->
+        <section id="reports">
+            <h3 class="text-xl font-semibold mb-4 text-gray-700">Recent Reports Activity</h3>
+            <div class="report-card">
+                <p><strong>Report ID: #4019</strong> - User: Jane Doe</p>
+                <p class="text-sm text-gray-600 mb-2">Subject: Unauthorized access attempt.</p>
+                <div class="flex justify-between items-center mt-2">
+                    <span class="status-dot" style="background: #2ecc71;">Approved</span>
+                    <button class="btn-small">View Details</button>
+                </div>
+            </div>
+            <div class="report-card" style="border-left: 5px solid var(--secondary);">
+                <p><strong>Report ID: #4018</strong> - User: John Smith</p>
+                <p class="text-sm text-gray-600 mb-2">Subject: Server performance degradation.</p>
+                <div class="flex justify-between items-center mt-2">
+                    <span class="status-dot" style="background: #f1c40f;">Pending</span>
+                    <button class="btn-small">View Details</button>
+                </div>
+            </div>
+        </section>
 
-        <div class="bento-card">
-          <h3>Total Reports</h3>
-          <p class="metric" id="totalReports">0</p>
-          <small>📄 All submitted reports</small>
-        </div>
-      </div>
+        <!-- Notifications Section -->
+        <section id="notifications">
+            <h3 class="text-xl font-semibold mb-4 text-gray-700">Notifications</h3>
+            <div class="notification unread">
+                <p><strong>New Superadmin:</strong> Admin Steve has been promoted.</p>
+                <small class="text-xs text-gray-500">2 minutes ago</small>
+            </div>
+            <div class="notification">
+                <p>The MongoDB connection experienced a brief outage.</p>
+                <small class="text-xs text-gray-500">1 hour ago</small>
+            </div>
+        </section>
+    </div>
 
-      <div class="chart-container">
-        <canvas id="reportsChart"></canvas>
-      </div>
-    </section>
+    <script>
+        /**
+         * Toggles the 'open' class on the sidebar element to display/hide the menu
+         * for mobile users when the hamburger button is clicked.
+         */
+        document.addEventListener('DOMContentLoaded', () => {
+            const hamburger = document.getElementById('hamburger-menu');
+            const sidebar = document.getElementById('sidebar');
 
-    <!-- Users -->
-    <section id="users">
-      <h2>👥 Manage Users</h2>
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="usersTable">
-            <tr>
-              <td colspan="4" class="center">Loading...</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- Reports -->
-    <section id="reports">
-      <h2>📝 Reports</h2>
-      <div id="reportsContainer" class="report-list">
-        <p>Loading reports...</p>
-      </div>
-    </section>
-
-    <!-- Notifications -->
-    <section id="notifications">
-      <h2>🔔 Notifications</h2>
-      <div id="notificationsList">
-        <p>Loading notifications...</p>
-      </div>
-    </section>
-  </main>
-
-  <!-- Section Switcher -->
-  <script>
-    const navLinks = document.querySelectorAll(".sidebar nav a");
-    const sections = document.querySelectorAll(".content section");
-
-    navLinks.forEach(link => {
-      link.addEventListener("click", () => {
-        navLinks.forEach(l => l.classList.remove("active"));
-        sections.forEach(s => s.classList.remove("active"));
-
-        link.classList.add("active");
-        document.getElementById(link.dataset.section).classList.add("active");
-        document.querySelector(".content").scrollTop = 0;
-      });
-    });
-  </script>
-
-  <script src="liveUpdates.js"></script>
-  <script src="superadmin.js"></script>
+            if (hamburger && sidebar) {
+                hamburger.addEventListener('click', () => {
+                    sidebar.classList.toggle('open');
+                    
+                    // Optional: Toggle the hamburger icon from bars to X
+                    const icon = hamburger.querySelector('i');
+                    if (sidebar.classList.contains('open')) {
+                        icon.classList.remove('fa-bars');
+                        icon.classList.add('fa-times');
+                    } else {
+                        icon.classList.remove('fa-times');
+                        icon.classList.add('fa-bars');
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>
