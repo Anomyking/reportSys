@@ -1,8 +1,12 @@
 import User from "../models/User.js";
 import Report from "../models/Report.js";
+// NOTE: You need a Notification model for the Superadmin view. 
+// If you don't have one, this is a placeholder.
+import Notification from "../models/Notification.js"; 
 
-// Functions accessible by BOTH 'admin' and 'superadmin'
-// ----------------------------------------------------------------
+// =============================================================
+// FUNCTIONS ACCESSIBLE BY BOTH 'admin' and 'superadmin'
+// =============================================================
 
 /************************************************************
  * 🔹 SYSTEM OVERVIEW (Dashboard Summary for both roles)
@@ -138,5 +142,88 @@ export const updateAdminSummary = async (req, res) => {
     } catch (err) {
         console.error("updateAdminSummary error:", err);
         res.status(500).json({ message: "Failed to update admin summary." });
+    }
+};
+
+// =============================================================
+// 🔸 FUNCTIONS ACCESSIBLE BY 'superadmin' ONLY
+// =============================================================
+
+/************************************************************
+ * 🔸 SUPERADMIN ONLY: USER MANAGEMENT
+ ************************************************************/
+
+/**
+ * 🔸 Get ALL users (Superadmin-specific route)
+ */
+export const getAllUsers = async (req, res) => {
+    try {
+        // Superadmin gets all users except the currently logged-in Superadmin
+        const users = await User.find({ _id: { $ne: req.user.id } }).select(
+            "name email role department"
+        );
+        res.json(users);
+    } catch (err) {
+        console.error("getAllUsers error:", err);
+        res.status(500).json({ message: "Failed to fetch users." });
+    }
+};
+
+/**
+ * 🔸 Update a user's role (Superadmin-specific route)
+ */
+export const updateUserRole = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { role } = req.body;
+
+        if (!["user", "admin", "superadmin"].includes(role)) {
+            return res.status(400).json({ message: "Invalid role specified." });
+        }
+
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(404).json({ message: "User not found." });
+        }
+
+        // Security check: Prevent the Superadmin from demoting themselves
+        if (user._id.toString() === req.user.id.toString()) {
+            return res.status(403).json({ message: "You cannot change your own role." });
+        }
+
+        // Security check: Only Superadmin can promote to or demote from 'superadmin'
+        if (user.role === "superadmin" && req.user.role !== "superadmin") {
+            return res.status(403).json({ message: "Only a Superadmin can modify another Superadmin's role." });
+        }
+
+        user.role = role;
+        await user.save();
+
+        res.json({ message: `User role updated to ${role}.`, user });
+    } catch (err) {
+        console.error("updateUserRole error:", err);
+        res.status(500).json({ message: "Failed to update user role." });
+    }
+};
+
+/************************************************************
+ * 🔸 SUPERADMIN ONLY: SYSTEM NOTIFICATIONS
+ ************************************************************/
+
+/**
+ * 🔸 Fetch system notifications (Superadmin-specific route)
+ * NOTE: This requires a Notification model for system alerts.
+ */
+export const getSystemNotifications = async (req, res) => {
+    try {
+        // Fetch all system-specific, non-user-attached notifications
+        const notifications = await Notification.find({})
+            .sort({ date: -1 })
+            .limit(50); 
+        
+        res.json(notifications);
+    } catch (err) {
+        console.error("getSystemNotifications error:", err);
+        res.status(500).json({ message: "Failed to fetch system notifications." });
     }
 };

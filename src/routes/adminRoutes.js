@@ -3,28 +3,28 @@
 import express from "express";
 import { protect, authorize } from "../middleware/authMiddleware.js"; 
 
-// 1. Imports from AdminController (Functions shared by Admin & Superadmin)
+// 1. ALL imports now come from the consolidated adminController.js
 import {
-    getOverview,             // Dashboard summary
-    getDepartmentReports,    // Fetch reports with department filtering
-    updateReportStatus,      // Change status (Approved/Rejected)
-    updateAdminSummary       // Update financial/analytical summary data
-} from "../controllers/adminController.js"; 
+    getOverview,             // Shared
+    getDepartmentReports,    // Shared
+    updateReportStatus,      // Shared
+    updateAdminSummary,      // Shared
 
-// 2. Imports from SuperAdminController (Functions used by Superadmin ONLY)
-import {
-    getAllUsers,             // View all users
-    updateUserRole,          // Change user roles
-    getPendingAdminRequests, // Fetch pending admin requests
-    handleAdminRequest,      // Approve/Reject admin requests
-    sendNotification,        // Send notifications to users/all
-    getNotifications         // Fetch all system notifications
-} from "../controllers/superAdminController.js";
+    // Superadmin-Only Functions (Now imported from adminController.js)
+    getAllUsers,             
+    updateUserRole,          
+    getSystemNotifications, // NOTE: Renamed 'getNotifications' to align with adminController.js
+
+    // Functions that are not yet implemented in adminController.js:
+    // getPendingAdminRequests, 
+    // handleAdminRequest, 
+    // sendNotification 
+} from "../controllers/adminController.js"; 
 
 const router = express.Router();
 
 /*
- * Routes accessible by BOTH Admin and Superadmin
+ * Routes accessible by BOTH Admin and Superadmin (Middleware: authorize("admin", "superadmin"))
  */
 
 // 1. Dashboard Overview
@@ -60,7 +60,7 @@ router.put(
 );
 
 // ----------------------------------------------------------------
-// 👑 Routes accessible by Superadmin ONLY
+// 👑 Routes accessible by Superadmin ONLY (Middleware: authorize("superadmin"))
 // ----------------------------------------------------------------
 
 // 5. View All Users
@@ -79,36 +79,43 @@ router.put(
     updateUserRole
 );
 
-// 7. Get Pending Admin Requests
+// 7. Get Pending Admin Requests (Controller function not yet finalized)
 router.get(
     "/admin-requests/pending",
     protect,
     authorize("superadmin"),
-    getPendingAdminRequests
+    // You'll need to create and import a controller function here
+    // e.g., getPendingAdminRequests 
+    (req, res) => res.status(501).json({ message: "Admin request logic not implemented." })
 );
 
-// 8. Handle Admin Requests (Approve/Reject)
+// 8. Handle Admin Requests (Approve/Reject) (Controller function not yet finalized)
 router.post(
     "/admin-requests/handle",
     protect,
     authorize("superadmin"),
-    handleAdminRequest
+    // You'll need to create and import a controller function here
+    // e.g., handleAdminRequest
+    (req, res) => res.status(501).json({ message: "Admin request handling logic not implemented." })
 );
 
-// 9. Send Notification to all/specific user
+// 9. Send Notification to all/specific user (Controller function not yet finalized)
 router.post(
     "/notifications",
     protect,
     authorize("superadmin"),
-    sendNotification
+    // You'll need to create and import a controller function here
+    // e.g., sendNotification
+    (req, res) => res.status(501).json({ message: "Notification sending logic not implemented." })
 );
 
 // 10. Get All System Notifications
+// NOTE: Renamed to match the function name we implemented: getSystemNotifications
 router.get(
     "/notifications/all",
     protect,
     authorize("superadmin"),
-    getNotifications
+    getSystemNotifications
 );
 
 export default router;
