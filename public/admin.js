@@ -12,7 +12,7 @@ const token = localStorage.getItem("token");
 if (!token) window.location.href = "/login.html"; 
 
 let refreshInterval = null;
-let bentoChartInstance = null;
+let bentoChartInstance = null; // Chart instance for the trend chart
 
 /* ----------------------- HELPERS ------------------------- */
 function showAlert(msg) {
@@ -111,32 +111,27 @@ async function loadAllDashboardData() {
 }
 
 /* --------------------- OVERVIEW -------------------------- */
+// ✅ FIX: Using the /admin/overview endpoint data directly
 async function loadOverview() {
     try {
-        // Uses consolidated /admin route
         const res = await fetch(`${API_URL}/admin/overview`, {
             headers: { Authorization: `Bearer ${token}` },
         });
         const parsed = await parsePossibleWrappedResponse(res);
+        
         if (!res.ok) throw new Error(parsed.error || "Failed to load overview");
 
-        // Note: The /admin/overview endpoint should return counts, not an array of reports.
-        // If it returns counts, update the logic below:
-        // const totalReportsEl = document.getElementById("totalReports");
-        // if (totalReportsEl) totalReportsEl.textContent = parsed.data.reports;
-        
-        // Temporarily using the Reports endpoint to calculate stats until overview is fixed:
-        const reportsRes = await fetch(`${API_URL}/admin/reports`, { headers: { Authorization: `Bearer ${token}` } });
-        const reportsParsed = await parsePossibleWrappedResponse(reportsRes);
-        const reports = Array.isArray(reportsParsed.data) ? reportsParsed.data : [];
+        const overviewData = parsed.data || {};
 
+        // 1. Update Total Reports count (using data directly from backend)
         const totalReportsEl = document.getElementById("totalReports");
-        if (totalReportsEl) totalReportsEl.textContent = reports.length;
+        if (totalReportsEl) totalReportsEl.textContent = overviewData.reports || 0;
 
+        // 2. Prepare stats for the chart
         const stats = {
-            Pending: reports.filter((r) => r.status === "Pending").length,
-            Approved: reports.filter((r) => r.status === "Approved").length,
-            Rejected: reports.filter((r) => r.status === "Rejected").length,
+            Pending: overviewData.reportStats?.Pending || 0,
+            Approved: overviewData.reportStats?.Approved || 0,
+            Rejected: overviewData.reportStats?.Rejected || 0,
         };
 
         renderChart(stats);
@@ -167,19 +162,19 @@ async function loadReports() {
         container.innerHTML = reports
             .map(
                 (r) => `
-			<div class="report-card">
-			  <h3>${escapeHtml(r.title)}</h3>
-			  <p>${escapeHtml(r.description)}</p>
-			  <p><strong>Category:</strong> ${escapeHtml(r.category)}</p>
-			  <p><strong>Status:</strong> ${escapeHtml(r.status)}</p>
-			  <p><small>By: ${escapeHtml(r.user?.name || "Unknown")}</small></p>
-			  <div class="report-actions">
-			    ${r.status === "Pending"
-                    ? `<button onclick="updateReportStatus('${r._id}', 'Approved')">Approve</button>
-			 			 <button onclick="updateReportStatus('${r._id}', 'Rejected')">Reject</button>`
-                    : ""}
-			  </div>
-			</div>`
+      <div class="report-card">
+        <h3>${escapeHtml(r.title)}</h3>
+        <p>${escapeHtml(r.description)}</p>
+        <p><strong>Category:</strong> ${escapeHtml(r.category)}</p>
+        <p><strong>Status:</strong> ${escapeHtml(r.status)}</p>
+        <p><small>By: ${escapeHtml(r.user?.name || "Unknown")}</small></p>
+        <div class="report-actions">
+          ${r.status === "Pending"
+                      ? `<button onclick="updateReportStatus('${r._id}', 'Approved')">Approve</button>
+             <button onclick="updateReportStatus('${r._id}', 'Rejected')">Reject</button>`
+                      : ""}
+        </div>
+      </div>`
             )
             .join("");
     } catch (err) {
@@ -212,6 +207,7 @@ window.updateReportStatus = async function(reportId, status) {
 };
 
 /* ----------------- MANUAL SUMMARY FORM ------------------ */
+// ✅ FIX: Added check for the placeholder ID value
 async function handleManualSummaryForm(e) {
     e.preventDefault();
 
@@ -221,7 +217,9 @@ async function handleManualSummaryForm(e) {
     const inventoryValue = parseFloat(document.getElementById("inventoryValue").value) || 0;
     const notes = document.getElementById("notes").value.trim();
 
-    if (!id) return showAlert("⚠️ Please enter a valid Report ID");
+    // 🛑 CRITICAL FIX: Prevent sending the literal 'new' placeholder as an ID.
+    if (!id || id.toLowerCase() === "new" || id.length < 24) 
+        return showAlert("⚠️ Please enter a valid 24-character Report ID to update its summary.");
 
     try {
         // Uses consolidated /admin route for updating summary
@@ -252,9 +250,7 @@ async function loadNotifications() {
     if (!container) return;
 
     try {
-        // NOTE: This route should fetch USER-SPECIFIC notifications (since this is the Admin Dashboard)
-        // If this route is intended for Superadmin's system alerts, it should be: /admin/notifications/all
-        // Assuming it fetches the authenticated user's (Admin) notifications:
+        // NOTE: This route should fetch USER-SPECIFIC notifications (via userRoutes.js)
         const res = await fetch(`${API_URL}/notifications`, { 
             headers: { Authorization: `Bearer ${token}` },
         });
@@ -266,10 +262,10 @@ async function loadNotifications() {
             ? notes
                 .map(
                     (n) => `
-			  <div class="notification ${n.read ? "read" : "unread"}">
-			    <p>${escapeHtml(n.message)}</p>
-			    <small>${formatDate(n.date)}</small>
-			  </div>`
+        <div class="notification ${n.read ? "read" : "unread"}">
+          <p>${escapeHtml(n.message)}</p>
+          <small>${formatDate(n.date)}</small>
+        </div>`
                 )
                 .join("")
             : "<p>No notifications.</p>";
@@ -283,7 +279,8 @@ function renderChart(stats) {
     const ctx = document.getElementById("reportsChart");
     if (!ctx) return;
 
-    if (ctx._chartInstance) ctx._chartInstance.destroy();
+    // Destroys previous instance if it exists
+    if (ctx._chartInstance) ctx._chartInstance.destroy(); 
 
     ctx._chartInstance = new Chart(ctx, {
         type: "doughnut",
@@ -309,7 +306,10 @@ async function loadBentoAnalytics() {
         const parsed = await parsePossibleWrappedResponse(res);
         const reports = Array.isArray(parsed.data) ? parsed.data : [];
 
+        // Filter for approved reports that have adminSummary data
         const approved = reports.filter((r) => r.status === "Approved" && r.adminSummary);
+        
+        // Calculate totals
         const totalRevenue = approved.reduce((s, r) => s + (r.adminSummary.revenue || 0), 0);
         const totalProfit = approved.reduce((s, r) => s + (r.adminSummary.profit || 0), 0);
         const totalInventory = approved.reduce((s, r) => s + (r.adminSummary.inventoryValue || 0), 0);
@@ -317,10 +317,13 @@ async function loadBentoAnalytics() {
         const revenueEl = document.getElementById("totalRevenue");
         const profitEl = document.getElementById("totalProfit");
         const inventoryEl = document.getElementById("totalInventory");
+        const totalReportsEl = document.getElementById("totalReports"); // Assuming this is where totalReports is displayed
 
+        // Update elements
         if (revenueEl) revenueEl.textContent = "$" + totalRevenue.toLocaleString();
         if (profitEl) profitEl.textContent = "$" + totalProfit.toLocaleString();
         if (inventoryEl) inventoryEl.textContent = "$" + totalInventory.toLocaleString();
+        if (totalReportsEl) totalReportsEl.textContent = reports.length.toLocaleString(); // Use local report count if overview failed
 
         renderBentoTrendChart(approved);
     } catch (err) {
@@ -333,6 +336,7 @@ function renderBentoTrendChart(reports) {
     const ctx = document.getElementById("bentoTrendChart");
     if (!ctx) return;
 
+    // Map data for the chart
     const labels = reports.map((r) =>
         r.reviewedAt ? new Date(r.reviewedAt).toLocaleDateString() : ""
     );
