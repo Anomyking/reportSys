@@ -3,7 +3,6 @@
  ************************************************************/
 const API_URL = window.CONFIG.API_URL;
 const token = localStorage.getItem("token");
-const role = localStorage.getItem("role");
 let refreshInterval = null;
 
 /************************************************************
@@ -18,38 +17,69 @@ function showAlert(msg) {
 }
 
 function getStatusColor(status) {
+    const normalizedStatus = status ? status.toLowerCase() : '';
     const colors = {
-        'Approved': 'green',
-        'Rejected': 'red',
+        'approved': 'green',
+        'rejected': 'red',
         'pending': '#FF0B55'
     };
-    return colors[status] || '#FF0B55';
+    return colors[normalizedStatus] || '#FF0B55';
+}
+
+async function apiFetch(endpoint, options = {}, requiresAuth = true) {
+    const headers = {
+        'Content-Type': 'application/json',
+        ...options.headers
+    };
+
+    if (requiresAuth) {
+        if (!token) {
+            redirectTo("login.html");
+            throw new Error("Authentication token missing.");
+        }
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const res = await fetch(`${API_URL}${endpoint}`, {
+        ...options,
+        headers
+    });
+
+    const contentType = res.headers.get("content-type");
+    const data = contentType && contentType.includes("application/json") ? await res.json() : {};
+
+    if (!res.ok) {
+        const errorMessage = data.message || `API call failed with status: ${res.status}`;
+        throw new Error(errorMessage);
+    }
+    
+    return data.data !== undefined ? data.data : data;
 }
 
 /************************************************************
  * AUTHENTICATION HANDLERS
  ************************************************************/
-// Register Form
-const registerForm = document.getElementById("registerForm");
-if (registerForm) {
+function setupRegisterForm() {
+    const registerForm = document.getElementById("registerForm");
+    if (!registerForm) return;
+
     registerForm.addEventListener("submit", async (e) => {
         e.preventDefault();
 
-        const name = document.getElementById("name").value.trim();
-        const email = document.getElementById("email").value.trim();
-        const password = document.getElementById("password").value.trim();
-        const roleSelect = document.getElementById("role");
-        const role = roleSelect ? roleSelect.value : "user";
+        const name = document.getElementById("name")?.value.trim();
+        const email = document.getElementById("email")?.value.trim();
+        const password = document.getElementById("password")?.value.trim();
+        const role = document.getElementById("role")?.value || "user";
 
+        if (!name || !email || !password) {
+            return showAlert("Please fill out all required fields.");
+        }
+        
         try {
-            const res = await fetch(`${API_URL}/auth/register`, {
+            await apiFetch("/auth/register", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ name, email, password, role }),
-            });
-
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.message || "Registration failed");
+            }, false);
 
             showAlert("✅ Registration successful! Redirecting...");
             redirectTo("login.html");
@@ -59,24 +89,25 @@ if (registerForm) {
     });
 }
 
-// Login Form
-const loginForm = document.getElementById("loginForm");
-if (loginForm) {
+function setupLoginForm() {
+    const loginForm = document.getElementById("loginForm");
+    if (!loginForm) return;
+
     loginForm.addEventListener("submit", async (e) => {
         e.preventDefault();
 
-        const email = document.getElementById("loginEmail").value.trim();
-        const password = document.getElementById("loginPassword").value.trim();
+        const email = document.getElementById("loginEmail")?.value.trim();
+        const password = document.getElementById("loginPassword")?.value.trim();
+        
+        if (!email || !password) {
+            return showAlert("Please enter your email and password.");
+        }
 
         try {
-            const res = await fetch(`${API_URL}/auth/login`, {
+            const data = await apiFetch("/auth/login", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, password }),
-            });
-
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.message || "Login failed");
+            }, false);
 
             localStorage.setItem("token", data.token);
             localStorage.setItem("name", data.name);
@@ -97,66 +128,59 @@ if (loginForm) {
 /************************************************************
  * NAVIGATION
  ************************************************************/
-// Sidebar Navigation
-document.querySelectorAll('.sidebar nav a').forEach(link => {
-    link.addEventListener('click', function (e) {
-        e.preventDefault();
+function setupNavigation() {
+    document.querySelectorAll('.sidebar nav a').forEach(link => {
+        link.addEventListener('click', function (e) {
+            e.preventDefault();
 
-        // Update active class
-        document.querySelector('.sidebar nav a.active')?.classList.remove('active');
-        this.classList.add('active');
+            document.querySelector('.sidebar nav a.active')?.classList.remove('active');
+            this.classList.add('active');
 
-        // Show target section
-        const targetId = this.getAttribute('href');
-        document.querySelectorAll('.content section').forEach(section => {
-            section.style.display = 'none';
+            const targetId = this.getAttribute('href');
+            document.querySelectorAll('.content section').forEach(section => {
+                section.style.display = 'none';
+            });
+            document.querySelector(targetId).style.display = 'block';
         });
-        document.querySelector(targetId).style.display = 'block';
     });
-});
 
-// Dashboard Username & Logout
-const userName = document.getElementById("userName");
-if (userName) userName.textContent = "👤 " + (localStorage.getItem("name") || "User");
+    const userName = document.getElementById("userName");
+    if (userName) userName.textContent = "👤 " + (localStorage.getItem("name") || "User");
 
-const logoutBtn = document.getElementById("logoutBtn");
-if (logoutBtn) {
-    logoutBtn.addEventListener("click", () => {
-        localStorage.clear();
-        redirectTo("login.html");
-    });
+    const logoutBtn = document.getElementById("logoutBtn");
+    if (logoutBtn) {
+        logoutBtn.addEventListener("click", () => {
+            localStorage.clear();
+            redirectTo("login.html");
+        });
+    }
 }
 
 /************************************************************
  * REPORT MANAGEMENT
  ************************************************************/
-// Report Submission
-const reportForm = document.getElementById("newReportForm");
-if (reportForm) {
+function setupReportForm() {
+    const reportForm = document.getElementById("newReportForm");
+    if (!reportForm) return;
+
     if (!token) redirectTo("login.html");
 
     reportForm.addEventListener("submit", async (e) => {
         e.preventDefault();
 
-        const title = document.getElementById("title").value.trim();
-        const description = document.getElementById("description").value.trim();
-        const category = document.getElementById("category").value;
+        const title = document.getElementById("title")?.value.trim();
+        const description = document.getElementById("description")?.value.trim();
+        const category = document.getElementById("category")?.value;
 
-        if (!title || !description || !category)
+        if (!title || !description || !category) {
             return showAlert("⚠️ Please fill in all fields.");
+        }
 
         try {
-            const res = await fetch(`${API_URL}/reports`, {
+            await apiFetch("/reports", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
                 body: JSON.stringify({ title, description, category }),
             });
-
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.message);
 
             showAlert("✅ Report submitted successfully!");
             reportForm.reset();
@@ -168,39 +192,37 @@ if (reportForm) {
 
     refreshReports();
 
-    // Auto refresh every 30 seconds
     if (!refreshInterval) {
         refreshInterval = setInterval(refreshReports, 30000);
         console.log("⏱️ Auto-refresh enabled every 30 seconds");
     }
 }
 
-// Load Reports
 async function refreshReports() {
     await loadReports();
     await loadReportAnalytics();
 }
 
 async function loadReports() {
-    const reportsDiv = document.getElementById("reportsContainer") || document.getElementById("reports");
-    if (!reportsDiv) return;
+    const reportsDiv = document.getElementById("reportsContainer") ?? document.getElementById("reports");
+    if (!reportsDiv) {
+        console.warn("DOM Error: Reports container element not found.");
+        return;
+    }
 
     try {
-        const res = await fetch(`${API_URL}/reports`, {
-            headers: { Authorization: `Bearer ${token}` },
-        });
+        const reports = await apiFetch("/reports");
 
-        if (!res.ok) throw new Error(`Failed to fetch reports (${res.status})`);
-        const { data } = await res.json();
+        if (!Array.isArray(reports)) {
+            throw new Error("Invalid response from server: Expected array.");
+        }
 
-        if (!Array.isArray(data)) throw new Error("Invalid response from server");
-
-        if (data.length === 0) {
+        if (reports.length === 0) {
             reportsDiv.innerHTML = "<p>No reports submitted yet.</p>";
             return;
         }
 
-        reportsDiv.innerHTML = data.map(report => `
+        reportsDiv.innerHTML = reports.map(report => `
             <div class="report-card">
                 <h3>${report.title}</h3>
                 <p>${report.description}</p>
@@ -220,18 +242,15 @@ async function loadReports() {
 /************************************************************
  * ADMIN FEATURES
  ************************************************************/
-// Request Admin Access
-const requestAdminBtn = document.getElementById("requestAdminBtn");
-if (requestAdminBtn) {
+function setupAdminFeatures() {
+    const requestAdminBtn = document.getElementById("requestAdminBtn");
+    if (!requestAdminBtn) return;
+
     requestAdminBtn.addEventListener("click", async () => {
         try {
-            const res = await fetch(`${API_URL}/users/request-admin`, {
+            const data = await apiFetch("/users/request-admin", {
                 method: "POST",
-                headers: { Authorization: `Bearer ${token}` },
             });
-
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.message);
 
             showAlert(data.message);
             requestAdminBtn.disabled = true;
@@ -245,27 +264,24 @@ if (requestAdminBtn) {
 /************************************************************
  * REPORT ANALYTICS & FILTERING
  ************************************************************/
-const filterBtn = document.getElementById("filterBtn");
-if (filterBtn) filterBtn.addEventListener("click", loadReportAnalytics);
+function setupReportFilters() {
+    const filterBtn = document.getElementById("filterBtn");
+    if (filterBtn) filterBtn.addEventListener("click", loadReportAnalytics);
+}
 
 async function loadReportAnalytics() {
     const category = document.getElementById("categoryFilter")?.value || "";
     const status = document.getElementById("statusFilter")?.value || "";
     const container = document.getElementById("reportsContainer");
-
+    
     try {
-        const res = await fetch(`${API_URL}/reports`, {
-            headers: { Authorization: `Bearer ${token}` },
-        });
+        const reports = await apiFetch("/reports");
 
-        if (!res.ok) throw new Error(`Server responded ${res.status}`);
-        const { data } = await res.json();
+        if (!Array.isArray(reports)) throw new Error("Invalid report data.");
 
-        if (!Array.isArray(data)) throw new Error("Invalid report data.");
-
-        let filtered = data;
+        let filtered = reports;
         if (category) filtered = filtered.filter(r => r.category === category);
-        if (status) filtered = filtered.filter(r => r.status === status);
+        if (status) filtered = filtered.filter(r => r.status.toLowerCase() === status.toLowerCase());
 
         renderReports(filtered);
         renderAnalyticsChart(filtered);
@@ -294,6 +310,7 @@ function renderReports(reports) {
             <p><strong>Status:</strong> 
                 <span style="color:${getStatusColor(report.status)};">${report.status}</span>
             </p>
+            <p><small>${new Date(report.createdAt).toLocaleString()}</small></p>
         </div>
     `).join("");
 }
@@ -341,4 +358,19 @@ function renderAnalyticsChart(reports) {
     });
 }
 
-console.log("✅ Script.js loaded with API_URL:", API_URL);
+/************************************************************
+ * INITIALIZATION
+ ************************************************************/
+function initializeApp() {
+    setupRegisterForm();
+    setupLoginForm();
+    setupNavigation();
+    setupReportForm();
+    setupAdminFeatures();
+    setupReportFilters();
+    
+    console.log("✅ Script.js loaded with API_URL:", API_URL);
+}
+
+// Initialize the application when DOM is loaded
+document.addEventListener('DOMContentLoaded', initializeApp);
