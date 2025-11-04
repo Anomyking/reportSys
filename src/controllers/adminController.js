@@ -1,7 +1,5 @@
 import User from "../models/User.js";
 import Report from "../models/Report.js";
-// NOTE: You need a Notification model for the Superadmin view. 
-// If you don't have one, this is a placeholder.
 import Notification from "../models/Notification.js"; 
 
 // =============================================================
@@ -44,8 +42,6 @@ export const getOverview = async (req, res) => {
 export const getDepartmentReports = async (req, res) => {
     try {
         const requestingUser = await User.findById(req.user.id).select("role department");
-        // This findById needs to be in a try/catch, but for simplicity we'll assume the protect middleware 
-        // handles the user ID validity. If the ID is invalid, it should be caught here:
         if (!requestingUser) return res.status(404).json({ message: "Admin not found." });
 
         const query = {};
@@ -64,7 +60,6 @@ export const getDepartmentReports = async (req, res) => {
         res.json(reports);
     } catch (err) {
         console.error("getDepartmentReports error:", err);
-        // Added CastError check here for safety, though the token payload should be validated in middleware
         if (err.name === 'CastError' && err.path === '_id') {
             return res.status(401).json({ message: "Invalid user token/ID format." });
         }
@@ -111,7 +106,6 @@ export const updateReportStatus = async (req, res) => {
         res.json({ message: `Report marked as ${status}`, report });
     } catch (err) {
         console.error("updateReportStatus error:", err);
-        // Added CastError check for report ID
         if (err.name === 'CastError' && err.path === '_id') {
             return res.status(400).json({ message: "Invalid Report ID format." });
         }
@@ -128,7 +122,14 @@ export const updateAdminSummary = async (req, res) => {
         const { revenue, profit, inventoryValue, notes } = req.body;
         
         const report = await Report.findById(id);
+        
+        // 1. Handle Report Not Found
         if (!report) return res.status(404).json({ message: "Report not found." });
+
+        // 2. ⭐ CRITICAL FIX: Initialize adminSummary if it's null/undefined.
+        if (!report.adminSummary) {
+            report.adminSummary = {};
+        }
 
         // Ensure numeric fields are correctly parsed (using || 0 as a safety measure)
         const numericFields = {
@@ -139,12 +140,19 @@ export const updateAdminSummary = async (req, res) => {
 
         // Update the adminSummary sub-document
         report.adminSummary = {
-            ...report.adminSummary, // Keep existing summary data
+            ...report.adminSummary.toObject(), // Use toObject() for reliable merging
             ...numericFields,
             notes,
             updatedAt: new Date(),
             updatedBy: req.user.id,
         };
+
+        // Optional: Auto-approve if a summary is created and it's pending
+        if (report.status === 'Pending') {
+             report.status = 'Approved';
+             report.reviewedBy = req.user.id;
+             report.reviewedAt = new Date();
+        }
 
         await report.save();
 
@@ -152,7 +160,7 @@ export const updateAdminSummary = async (req, res) => {
     } catch (err) {
         console.error("updateAdminSummary error:", err);
         
-        // ✅ CRITICAL FIX: Gracefully handle the CastError (invalid ID format)
+        // ✅ FIX: Handle CastError (invalid ID format) gracefully
         if (err.name === 'CastError' && err.path === '_id') {
             return res.status(400).json({ message: "Invalid Report ID format. Must be a valid 24-character ID." });
         }
@@ -218,7 +226,6 @@ export const updateUserRole = async (req, res) => {
         res.json({ message: `User role updated to ${role}.`, user });
     } catch (err) {
         console.error("updateUserRole error:", err);
-        // Added CastError check for user ID
         if (err.name === 'CastError' && err.path === '_id') {
             return res.status(400).json({ message: "Invalid User ID format." });
         }
@@ -232,7 +239,6 @@ export const updateUserRole = async (req, res) => {
 
 /**
  * 🔸 Fetch system notifications (Superadmin-specific route)
- * NOTE: This requires a Notification model for system alerts.
  */
 export const getSystemNotifications = async (req, res) => {
     try {

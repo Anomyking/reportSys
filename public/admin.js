@@ -98,6 +98,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // Attach summary form handler
     const summaryForm = document.getElementById("summaryForm");
     if (summaryForm) summaryForm.addEventListener("submit", handleManualSummaryForm);
+
+    // ⭐ NEW ATTACHMENT: ID Finder button handler
+    const searchIdBtn = document.getElementById("searchIdBtn");
+    if (searchIdBtn) searchIdBtn.addEventListener("click", findReportIdByTitle);
 });
 
 /* ----------------- LOAD ALL DASHBOARD DATA --------------- */
@@ -111,7 +115,6 @@ async function loadAllDashboardData() {
 }
 
 /* --------------------- OVERVIEW -------------------------- */
-// ✅ FIX: Using the /admin/overview endpoint data directly
 async function loadOverview() {
     try {
         const res = await fetch(`${API_URL}/admin/overview`, {
@@ -123,7 +126,7 @@ async function loadOverview() {
 
         const overviewData = parsed.data || {};
 
-        // 1. Update Total Reports count (using data directly from backend)
+        // 1. Update Total Reports count
         const totalReportsEl = document.getElementById("totalReports");
         if (totalReportsEl) totalReportsEl.textContent = overviewData.reports || 0;
 
@@ -167,6 +170,7 @@ async function loadReports() {
         <p>${escapeHtml(r.description)}</p>
         <p><strong>Category:</strong> ${escapeHtml(r.category)}</p>
         <p><strong>Status:</strong> ${escapeHtml(r.status)}</p>
+        <p><small>ID: ${escapeHtml(r._id)}</small></p>
         <p><small>By: ${escapeHtml(r.user?.name || "Unknown")}</small></p>
         <div class="report-actions">
           ${r.status === "Pending"
@@ -180,6 +184,8 @@ async function loadReports() {
     } catch (err) {
         container.innerHTML = `<p style="color:red;">Error: ${escapeHtml(err.message)}</p>`;
     }
+    // Return reports for local search function
+    return Array.isArray(parsed.data) ? parsed.data : [];
 }
 
 /* ----------------- REPORT STATUS UPDATE ----------------- */
@@ -206,8 +212,39 @@ window.updateReportStatus = async function(reportId, status) {
     }
 };
 
+// ⭐ NEW HELPER FUNCTION: Find ID by Title (simulates better UX)
+async function findReportIdByTitle() {
+    const titleInput = document.getElementById("reportTitleSearch").value.trim();
+    const idInput = document.getElementById("reportId");
+
+    if (!titleInput) {
+        idInput.value = "";
+        return showAlert("⚠️ Please enter a Report Title to search for its ID.");
+    }
+
+    try {
+        // Re-load reports to ensure we have the latest list
+        const reports = await loadReports(); 
+        
+        const foundReport = reports.find(r => r.title.toLowerCase() === titleInput.toLowerCase());
+
+        if (foundReport) {
+            idInput.value = foundReport._id;
+            showAlert(`✅ ID found for "${foundReport.title}"! Status: ${foundReport.status}`);
+        } else {
+            idInput.value = "";
+            showAlert(`❌ Report with title "${titleInput}" not found in your department.`);
+        }
+
+    } catch (err) {
+        showAlert("❌ Failed to search reports.");
+        console.error("Search error:", err);
+    }
+}
+
+
 /* ----------------- MANUAL SUMMARY FORM ------------------ */
-// ✅ FIX: Simplified ID validation as the backend will now handle the CastError gracefully
+// ✅ FIXED: Simplified ID validation as the backend now handles the CastError gracefully
 async function handleManualSummaryForm(e) {
     e.preventDefault();
 
@@ -218,7 +255,6 @@ async function handleManualSummaryForm(e) {
     const notes = document.getElementById("notes").value.trim();
 
     // 🛑 SIMPLIFIED CHECK: Only verify ID exists and isn't the placeholder 'new'. 
-    // The backend now handles the strict format check and returns a 400.
     if (!id || id.toLowerCase() === "new") { 
         return showAlert("⚠️ Please enter a Report ID to update its summary.");
     }
@@ -319,13 +355,13 @@ async function loadBentoAnalytics() {
         const revenueEl = document.getElementById("totalRevenue");
         const profitEl = document.getElementById("totalProfit");
         const inventoryEl = document.getElementById("totalInventory");
-        const totalReportsEl = document.getElementById("totalReports"); // Assuming this is where totalReports is displayed
+        const totalReportsEl = document.getElementById("totalReports"); 
 
         // Update elements
         if (revenueEl) revenueEl.textContent = "$" + totalRevenue.toLocaleString();
         if (profitEl) profitEl.textContent = "$" + totalProfit.toLocaleString();
         if (inventoryEl) inventoryEl.textContent = "$" + totalInventory.toLocaleString();
-        if (totalReportsEl) totalReportsEl.textContent = reports.length.toLocaleString(); // Use local report count if overview failed
+        if (totalReportsEl) totalReportsEl.textContent = reports.length.toLocaleString(); 
 
         renderBentoTrendChart(approved);
     } catch (err) {
