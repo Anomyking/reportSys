@@ -1,6 +1,6 @@
 /************************************************************
- * ADMIN DASHBOARD SCRIPT (Updated for Vercel)
- * Combines: API handling + Bento analytics + Live Socket + Manual Summary Form
+ * ADMIN DASHBOARD SCRIPT (Consolidated)
+ * Combines: Config, API handling, Socket, Analytics, and Forms
  ************************************************************/
 
 /* ----------------------- CONFIG -------------------------- */
@@ -8,7 +8,8 @@ const API_URL = window.CONFIG.API_URL;
 const BASE_URL = window.CONFIG.BASE_URL;
 
 const token = localStorage.getItem("token");
-if (!token) window.location.href = "/login.html";
+// Redirect if not logged in or role check (optional, better handled by backend/router protection)
+if (!token) window.location.href = "/login.html"; 
 
 let refreshInterval = null;
 let bentoChartInstance = null;
@@ -31,16 +32,19 @@ function formatDate(dateString) {
 async function parsePossibleWrappedResponse(res) {
     const text = await res.text();
     try {
-        const parsed = JSON.parse(text || "{}");
+        // Handle common API response formats (plain array, or { data: array })
+        const parsed = JSON.parse(text || "{}"); 
         if (Array.isArray(parsed)) return { ok: res.ok, data: parsed };
         if (parsed && Array.isArray(parsed.data)) return { ok: res.ok, data: parsed.data };
         return { ok: res.ok, data: parsed };
     } catch {
-        return { ok: res.ok, error: "Invalid JSON", raw: text };
+        // Return raw text if parsing fails (e.g., non-JSON error response)
+        return { ok: res.ok, error: "Invalid JSON response from server", raw: text };
     }
 }
 
 /* ---------------------- SOCKET SETUP --------------------- */
+// Initializes the socket connection
 const socket = io(BASE_URL, { transports: ["websocket", "polling"] });
 const liveDot = document.getElementById("liveDot");
 const liveText = document.getElementById("liveText");
@@ -73,24 +77,25 @@ function throttle(fn) {
     }
 }
 
+// Listener for report updates from the backend
 socket.on("reportUpdate", () => throttle(loadAllDashboardData));
 
 /* --------------------- INITIAL LOAD ---------------------- */
 document.addEventListener("DOMContentLoaded", () => {
     loadAllDashboardData();
 
-    // auto-refresh every 60s
+    // Set up auto-refresh every 60s
     if (!refreshInterval) {
         refreshInterval = setInterval(loadAllDashboardData, 60000);
     }
 
-    // logout
+    // Logout handler
     document.getElementById("logoutBtn")?.addEventListener("click", () => {
         localStorage.clear();
         window.location.href = "/login.html";
     });
 
-    // attach summary form handler
+    // Attach summary form handler
     const summaryForm = document.getElementById("summaryForm");
     if (summaryForm) summaryForm.addEventListener("submit", handleManualSummaryForm);
 });
@@ -108,13 +113,23 @@ async function loadAllDashboardData() {
 /* --------------------- OVERVIEW -------------------------- */
 async function loadOverview() {
     try {
-        const res = await fetch(`${API_URL}/admin/reports`, {
+        // Uses consolidated /admin route
+        const res = await fetch(`${API_URL}/admin/overview`, {
             headers: { Authorization: `Bearer ${token}` },
         });
         const parsed = await parsePossibleWrappedResponse(res);
         if (!res.ok) throw new Error(parsed.error || "Failed to load overview");
 
-        const reports = Array.isArray(parsed.data) ? parsed.data : [];
+        // Note: The /admin/overview endpoint should return counts, not an array of reports.
+        // If it returns counts, update the logic below:
+        // const totalReportsEl = document.getElementById("totalReports");
+        // if (totalReportsEl) totalReportsEl.textContent = parsed.data.reports;
+        
+        // Temporarily using the Reports endpoint to calculate stats until overview is fixed:
+        const reportsRes = await fetch(`${API_URL}/admin/reports`, { headers: { Authorization: `Bearer ${token}` } });
+        const reportsParsed = await parsePossibleWrappedResponse(reportsRes);
+        const reports = Array.isArray(reportsParsed.data) ? reportsParsed.data : [];
+
         const totalReportsEl = document.getElementById("totalReports");
         if (totalReportsEl) totalReportsEl.textContent = reports.length;
 
@@ -136,6 +151,7 @@ async function loadReports() {
     if (!container) return;
 
     try {
+        // Uses consolidated /admin route for department reports
         const res = await fetch(`${API_URL}/admin/reports`, {
             headers: { Authorization: `Bearer ${token}` },
         });
@@ -174,6 +190,7 @@ async function loadReports() {
 /* ----------------- REPORT STATUS UPDATE ----------------- */
 window.updateReportStatus = async function(reportId, status) {
     try {
+        // Uses consolidated /admin route for updating status
         const res = await fetch(`${API_URL}/admin/reports/${reportId}`, {
             method: "PUT",
             headers: {
@@ -207,6 +224,7 @@ async function handleManualSummaryForm(e) {
     if (!id) return showAlert("⚠️ Please enter a valid Report ID");
 
     try {
+        // Uses consolidated /admin route for updating summary
         const res = await fetch(`${API_URL}/admin/reports/${id}/summary`, {
             method: "PUT",
             headers: {
@@ -234,11 +252,15 @@ async function loadNotifications() {
     if (!container) return;
 
     try {
-        const res = await fetch(`${API_URL}/notifications`, {
+        // NOTE: This route should fetch USER-SPECIFIC notifications (since this is the Admin Dashboard)
+        // If this route is intended for Superadmin's system alerts, it should be: /admin/notifications/all
+        // Assuming it fetches the authenticated user's (Admin) notifications:
+        const res = await fetch(`${API_URL}/notifications`, { 
             headers: { Authorization: `Bearer ${token}` },
         });
         const parsed = await parsePossibleWrappedResponse(res);
-        const notes = Array.isArray(parsed.data) ? parsed.data : [];
+        // Assuming the backend returns an array of notifications in `parsed.data` or just `parsed`
+        const notes = Array.isArray(parsed.data) ? parsed.data : (Array.isArray(parsed) ? parsed : []);
 
         container.innerHTML = notes.length
             ? notes
@@ -280,9 +302,8 @@ function renderChart(stats) {
 /* ------------------ BENTO ANALYTICS --------------------- */
 async function loadBentoAnalytics() {
     try {
-        // NOTE: This route should probably be /api/admin/reports or /api/admin/reports/analytics
-        // But for now, we use /reports as a simple endpoint to get all report data.
-        const res = await fetch(`${API_URL}/reports`, {
+        // NOTE: Using /admin/reports to get data. This ensures the Admin only sees their department's data.
+        const res = await fetch(`${API_URL}/admin/reports`, { 
             headers: { Authorization: `Bearer ${token}` },
         });
         const parsed = await parsePossibleWrappedResponse(res);
