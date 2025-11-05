@@ -21,6 +21,11 @@ const userSchema = new mongoose.Schema(
       enum: ["user", "admin", "superadmin"],
       default: "user",
     },
+    profilePhoto: {
+      type: String,
+      default: "/uploads/profile/default.png"
+},
+
     department: {
       type: String,
       default: "General",

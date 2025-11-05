@@ -357,36 +357,39 @@ async function loadProfileData() {
     const profileNameInput = document.getElementById("profileName");
     const profileEmailInput = document.getElementById("profileEmail");
     const profileRoleInput = document.getElementById("profileRole");
-    const profileStatusInput = document.getElementById("profileStatus");
-    const profilePhotoImg = document.getElementById("profilePhotoImg"); // 🔹 New Photo Element
-
-    if (!profileNameInput) return;
+    const profileDeptInput = document.getElementById("profileDepartment");
+    const profilePhotoImg = document.getElementById("profilePhotoImg");
 
     try {
         const user = await apiFetch("/users/me");
-        
-        profileNameInput.value = user.name || "N/A";
-        profileEmailInput.value = user.email || "N/A";
-        profileRoleInput.value = user.role || "N/A";
-        
-        if (profileStatusInput) {
-             profileStatusInput.value = user.status || "Active";
-        }
 
-        // 🔹 Logic to display the profile photo
-        if (profilePhotoImg) {
-            if (user.profilePhotoPath) {
-                // Assuming profilePhotoPath is a root-relative path like /uploads/profiles/pic.jpg
-                profilePhotoImg.src = user.profilePhotoPath;
-            } else {
-                // Default avatar if no photo is uploaded
-                profilePhotoImg.src = "https://via.placeholder.com/150?text=Profile"; 
-            }
-        }
+        profileNameInput.value = user.name || "";
+        profileEmailInput.value = user.email || "";
+        profileRoleInput.value = user.role || "";
+        if (profileDeptInput) profileDeptInput.value = user.department || "";
+
+        profilePhotoImg.src = user.profilePhotoPath 
+            ? user.profilePhotoPath 
+            : "https://via.placeholder.com/150?text=Profile";
         
     } catch (err) {
-        console.error("Error loading user profile:", err);
-        showAlert("Could not load profile details. " + err.message);
+        showAlert("Could not load profile: " + err.message);
+    }
+}
+
+async function updateProfile() {
+    const name = document.getElementById("profileName").value;
+    const department = document.getElementById("profileDepartment")?.value;
+
+    try {
+        await apiFetch("/users/update-profile", {
+            method: "PUT",
+            body: JSON.stringify({ name, department }),
+        });
+
+        showAlert("✅ Profile updated!");
+    } catch (err) {
+        showAlert(err.message);
     }
 }
 
@@ -398,66 +401,49 @@ async function handleProfilePhotoUpload(e) {
     formData.append('profilePhoto', file);
 
     try {
-        // 🔹 New API call to upload photo
-        const data = await apiFetch("/users/profile-photo", {
+        await apiFetch("/users/profile-photo", {
             method: "POST",
-            body: formData, // apiFetch handles FormData now
+            body: formData,
         });
 
-        showAlert("✅ Profile photo uploaded successfully!");
-        // Refresh profile data to display the new photo
-        loadProfileData(); 
+        showAlert("✅ Photo updated!");
+        loadProfileData();
         
     } catch (err) {
-        console.error("Error uploading profile photo:", err);
-        showAlert("Error uploading photo: " + err.message);
+        showAlert("Upload failed: " + err.message);
     }
 }
 
-
 function setupProfileSection() {
+    const profilePhotoInput = document.getElementById("profilePhotoInput");
+    if (profilePhotoInput) {
+        profilePhotoInput.addEventListener("change", handleProfilePhotoUpload);
+    }
+
+    const saveProfileBtn = document.getElementById("saveProfileBtn");
+    if (saveProfileBtn) {
+        saveProfileBtn.addEventListener("click", updateProfile);
+    }
+
     const changePasswordForm = document.getElementById("changePasswordForm");
     if (changePasswordForm) {
         changePasswordForm.addEventListener("submit", async (e) => {
             e.preventDefault();
 
-            const currentPassword = document.getElementById("currentPassword")?.value.trim();
-            const newPassword = document.getElementById("newPassword")?.value.trim();
-            const confirmNewPassword = document.getElementById("confirmNewPassword")?.value.trim();
+            const currentPassword = document.getElementById("currentPassword").value;
+            const newPassword = document.getElementById("newPassword").value;
 
-            if (!currentPassword || !newPassword || !confirmNewPassword) {
-                return showAlert("All password fields are required.");
-            }
-            if (newPassword !== confirmNewPassword) {
-                return showAlert("New passwords do not match.");
-            }
-            if (newPassword.length < 6) { 
-                return showAlert("New password must be at least 6 characters long.");
-            }
+            await apiFetch("/users/change-password", {
+                method: "PUT",
+                body: JSON.stringify({ currentPassword, newPassword }),
+            });
 
-            try {
-                await apiFetch("/users/change-password", {
-                    method: "PUT",
-                    body: JSON.stringify({ currentPassword, newPassword }),
-                });
-
-                showAlert("✅ Password updated successfully! Please log in again.");
-                localStorage.clear();
-                redirectTo("login.html");
-                
-            } catch (err) {
-                showAlert("Error changing password: " + err.message);
-            }
+            showAlert("✅ Password changed. Login again.");
+            localStorage.clear();
+            redirectTo("login.html");
         });
     }
-
-    // 🔹 New: Event listener for file input change
-    const profilePhotoInput = document.getElementById("profilePhotoInput");
-    if (profilePhotoInput) {
-        profilePhotoInput.addEventListener('change', handleProfilePhotoUpload);
-    }
 }
-
 
 /************************************************************
  * ADMIN FEATURES

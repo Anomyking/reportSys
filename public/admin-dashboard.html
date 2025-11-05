@@ -1,94 +1,138 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Dashboard | Report Portal</title>
-  <link rel="stylesheet" href="dashboard.css" />
-  <!-- ✅ Load config first -->
-  <script src="config.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard | Report Portal</title>
+    <link rel="stylesheet" href="dashboard.css" />
+    <script src="config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 
 <body>
+    <div id="liveStatus">
+        <div id="liveDot"></div>
+        <span id="liveText">Connecting...</span>
+    </div>
 
-  <div id="liveStatus">
-    <div id="liveDot"></div>
-    <span id="liveText">Connecting...</span>
-  </div>
+    <aside class="sidebar">
+        <h2>🛠️ Admin Panel</h2>
+        <nav>
+            <a href="#overview" class="active">📊 Overview</a>
+            <a href="#reports">📝 Reports</a>
+            <a href="#notifications">🔔 Notifications</a>
+            <a href="#profile">👤 Profile</a>
+        </nav>
+        <a id="logoutBtn" class="logout" href="#">🚪 Logout</a>
+    </aside>
 
-  <!-- ✅ SIDEBAR -->
-  <aside class="sidebar">
-    <h2>🛠️ Admin Panel</h2>
-    <nav>
-      <a href="#overview" class="active">📊 Overview</a>
-      <a href="#reports">📝 Reports</a>
-      <a href="#notifications">🔔 Notifications</a>
-    </nav>
-    <a id="logoutBtn" class="logout" href="#">🚪 Logout</a>
-  </aside>
+    <main class="content">
+        <!-- Overview Section -->
+        <section id="overview">
+            <h2>📈 Overview</h2>
+            <div class="bento-grid">
+                <div class="bento-card">
+                    <h3>Total Revenue</h3>
+                    <p class="metric" id="totalRevenue">$0</p>
+                    <small>💰 Sum of all approved reports</small>
+                </div>
 
-  <!-- ✅ MAIN CONTENT -->
-  <main class="content">
+                <div class="bento-card">
+                    <h3>Total Profit</h3>
+                    <p class="metric" id="totalProfit">$0</p>
+                    <small>📈 Calculated from admin summaries</small>
+                </div>
 
-    <!-- ✅ Bento Overview -->
-    <section id="overview">
-      <h2>📈 Overview</h2>
-      <div class="bento-grid">
-        <div class="bento-card">
-          <h3>Total Revenue</h3>
-          <p class="metric" id="totalRevenue">$0</p>
-          <small>💰 Sum of all approved reports</small>
-        </div>
+                <div class="bento-card">
+                    <h3>Total Inventory</h3>
+                    <p class="metric" id="totalInventory">$0</p>
+                    <small>📦 Based on latest admin updates</small>
+                </div>
+            </div>
 
-        <div class="bento-card">
-          <h3>Total Profit</h3>
-          <p class="metric" id="totalProfit">$0</p>
-          <small>📈 Calculated from admin summaries</small>
-        </div>
+            <div class="chart-container">
+                <canvas id="bentoTrendChart"></canvas>
+            </div>
+        </section>
 
-        <div class="bento-card">
-          <h3>Total Inventory</h3>
-          <p class="metric" id="totalInventory">$0</p>
-          <small>📦 Based on latest admin updates</small>
-        </div>
-      </div>
+        <!-- Reports Section -->
+        <section id="reports">
+            <h2>📝 Reports</h2>
+            <div id="reportsContainer" class="report-list">
+                <p>Loading reports...</p>
+            </div>
+        </section>
 
-      <div class="chart-container">
-        <canvas id="bentoTrendChart"></canvas>
-      </div>
-    </section>
+        <!-- Summary Section -->
+        <section id="summarySection" class="summary-form">
+            <h3>📊 Report Summary</h3>
+            <form id="summaryForm">
+                <input type="text" id="reportId" placeholder="Enter Report ID to Update" required />
+                <input type="number" id="revenue" placeholder="Revenue ($)" step="0.01" />
+                <input type="number" id="profit" placeholder="Profit ($)" step="0.01" />
+                <input type="number" id="inventoryValue" placeholder="Inventory Value ($)" step="0.01" />
+                <textarea id="notes" placeholder="Notes (optional)" rows="3"></textarea>
+                <button type="submit">💾 Save Summary</button>
+            </form>
+        </section>
 
-    <!-- ✅ Reports -->
-    <section id="reports">
-      <h2>📝 Department Reports</h2>
-      <div id="reportsContainer" class="report-list">
-        <p>Loading reports...</p>
-      </div>
-    </section>
+        <!-- Notifications Section -->
+        <section id="notifications">
+            <h2>🔔 Notifications</h2>
+            <div id="notificationsContainer">
+                <p>Loading notifications...</p>
+            </div>
+        </section>
 
-    <!-- ✅ Summary Form -->
-    <section id="summarySection" class="summary-form">
-      <h3>📊 Report Summary</h3>
-      <form id="summaryForm">
-        <input type="text" id="reportId" placeholder="Enter Report ID to Update" required />
-        <input type="number" id="revenue" placeholder="Revenue ($)" step="0.01" />
-        <input type="number" id="profit" placeholder="Profit ($)" step="0.01" />
-        <input type="number" id="inventoryValue" placeholder="Inventory Value ($)" step="0.01" />
-        <textarea id="notes" placeholder="Notes (optional)" rows="3"></textarea>
-        <button type="submit">💾 Save Summary</button>
-      </form>
-    </section>
+        <!-- Profile Section -->
+        <section id="profile">
+            <h2>👤 My Profile</h2>
+            <div class="profile-header">
+                <div class="profile-photo-container">
+                    <img id="profilePhoto" class="profile-photo" src="" alt="Profile Photo" />
+                    <label for="photoUpload" class="upload-btn">Upload New Photo</label>
+                    <input type="file" id="photoUpload" style="display: none;" accept="image/*">
+                </div>
 
-    <!-- ✅ Notifications -->
-    <section id="notifications">
-      <h2>🔔 Notifications</h2>
-      <div id="notificationsContainer">
-        <p>Loading notifications...</p>
-      </div>
-    </section>
-  </main>
-  <script src="admin.js"></script>
+                <div class="profile-details-card">
+                    <h3>Account Information</h3>
+                    <div class="form-group">
+                        <label for="fullName">Name:</label>
+                        <input type="text" id="fullName" value="Admin User" disabled />
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email:</label>
+                        <input type="email" id="email" value="admin@reportportal.com" disabled />
+                    </div>
+                    <div class="form-group">
+                        <label for="role">Role:</label>
+                        <input type="text" id="role" value="Superadmin" disabled />
+                    </div>
+                </div>
+            </div>
+
+            <div class="password-card section">
+                <h3>Change Password</h3>
+                <form id="changePasswordForm">
+                    <div class="form-group">
+                        <label for="currentPassword">Current Password</label>
+                        <input type="password" id="currentPassword" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="newPassword">New Password</label>
+                        <input type="password" id="newPassword" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirm New Password</label>
+                        <input type="password" id="confirmPassword" required />
+                    </div>
+                    <button type="submit">🔑 Update Password</button>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <script src="admin.js"></script>
 </body>
 </html>
