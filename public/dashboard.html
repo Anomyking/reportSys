@@ -13,17 +13,17 @@
     <aside class="sidebar">
         <h2>Report Portal</h2>
         <nav>
-            <a href="#reportManagement">Analytics</a>
-            <a href="#reportForm" class="active">Submit Report</a>
-            <a href="#fileHistorySection">My Reports</a>
-            <a href="#adminRequestSection">Request Admin Access</a>
-            <a href="#" id="profileLink">Profile</a>
-            <a href="#" id="logoutBtn" class="logout">Logout</a>
+            <a href="#reportManagement">📊 Analytics</a>
+            <a href="#reportForm" class="active">📝 Submit Report</a>
+            <a href="#fileHistorySection">📁 My Reports</a>
+            <a href="#adminRequestSection">👑 Request Admin Access</a>
+            <a href="#profileSection" id="profileLink">⚙️ Profile</a>
+            <a href="#" id="logoutBtn" class="logout">🚪 Logout</a>
         </nav>
     </aside>
 
     <main class="content">
-        <!-- Analytics Section -->
+        
         <section id="reportManagement" style="display: none;">
             <h2>📊 Report Management</h2>
             
@@ -54,7 +54,6 @@
             </div>
         </section>
 
-        <!-- Report Submission Section -->
         <section id="reportForm">
             <h2>Submit Report</h2>
             <form id="newReportForm" enctype="multipart/form-data">
@@ -71,7 +70,6 @@
             </form>
         </section>
 
-        <!-- File History Section -->
         <section id="fileHistorySection" style="display: none;">
             <h2>📁 Your Uploaded Files</h2>
             <div class="file-search">
@@ -82,12 +80,64 @@
             </div>
         </section>
 
-        <!-- Admin Request Section -->
         <section id="adminRequestSection" style="display: none;">
             <h2>Request Admin Access</h2>
             <p>Want to help manage reports? Request admin access below.</p>
             <button id="requestAdminBtn">Request Admin Role</button>
         </section>
+        
+        <section id="profileSection" style="display: none;">
+            <h2>⚙️ User Profile</h2>
+
+            <div class="profile-header">
+                
+                <div class="profile-photo-container">
+                    <img id="profilePhotoImg" src="https://via.placeholder.com/150?text=Profile" alt="Profile Photo" class="profile-photo">
+                    
+                    <label for="profilePhotoInput" class="upload-btn">
+                        <span style="font-size: 20px;">📷</span> Change Photo
+                    </label>
+                    
+                    <input type="file" id="profilePhotoInput" accept="image/*" style="display: none;">
+                </div>
+
+                <div class="card profile-details-card">
+                    <h3>My Details</h3>
+                    <div class="form-group">
+                        <label>Name:</label>
+                        <input type="text" id="profileName" value="Loading..." readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Email:</label>
+                        <input type="email" id="profileEmail" value="Loading..." readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Role:</label>
+                        <input type="text" id="profileRole" value="Loading..." readonly>
+                    </div>
+                    </div>
+            </div>
+
+            <div class="card password-card">
+                <h3>Change Password</h3>
+                <form id="changePasswordForm">
+                    <div class="form-group">
+                        <label for="currentPassword">Current Password:</label>
+                        <input type="password" id="currentPassword" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newPassword">New Password:</label>
+                        <input type="password" id="newPassword" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmNewPassword">Confirm New Password:</label>
+                        <input type="password" id="confirmNewPassword" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Update Password</button>
+                </form>
+            </div>
+        </section>
+        
     </main>
 
     <script src="liveUpdates.js"></script>

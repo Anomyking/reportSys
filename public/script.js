@@ -42,6 +42,11 @@ async function apiFetch(endpoint, options = {}, requiresAuth = true) {
         headers['Authorization'] = `Bearer ${token}`;
     }
 
+    // Special case for FormData (file uploads) - do not set Content-Type JSON
+    if (options.body instanceof FormData) {
+        delete headers['Content-Type'];
+    }
+
     const res = await fetch(`${API_URL}${endpoint}`, {
         ...options,
         headers
@@ -152,6 +157,11 @@ function setupNavigation() {
             const targetSection = document.querySelector(targetId);
             if (targetSection) {
                 targetSection.style.display = 'block';
+                
+                // 🔹 Load profile data when the profile section is navigated to
+                if (targetId === '#profileSection') {
+                    loadProfileData();
+                }
             }
         });
     });
@@ -165,6 +175,12 @@ function setupNavigation() {
             localStorage.clear();
             redirectTo("login.html");
         });
+    }
+    
+    // 🔹 Automatically show the first section on load
+    const firstSectionLink = document.querySelector('.sidebar nav a');
+    if (firstSectionLink) {
+        firstSectionLink.click();
     }
 }
 
@@ -187,11 +203,10 @@ function setupReportForm() {
         }
 
         try {
-            // NOTE: fetch is used here instead of apiFetch because it handles FormData/file uploads correctly
+            // NOTE: apiFetch handles FormData now, but this original block is fine too.
             const res = await fetch(`${API_URL}/reports`, {
                 method: "POST",
                 headers: {
-                    // Content-Type is intentionally omitted; browser sets it for FormData
                     Authorization: `Bearer ${token}`,
                 },
                 body: formData,
@@ -305,7 +320,6 @@ async function loadFilesHistory(searchTerm = '') {
 
             let previewContent;
             if (isImage) {
-                // ✅ FIX: Removed ${API_URL} from src
                 previewContent = `<img src="${file.attachmentPath}" alt="${file.attachmentName}" class="file-preview-image">`;
             } else if (fileExtension === 'PDF') {
                 previewContent = `<div class="file-icon pdf-icon">📄 PDF</div>`;
@@ -336,6 +350,116 @@ async function loadFilesHistory(searchTerm = '') {
 }
 
 /************************************************************
+ * PROFILE MANAGEMENT
+ ************************************************************/
+
+async function loadProfileData() {
+    const profileNameInput = document.getElementById("profileName");
+    const profileEmailInput = document.getElementById("profileEmail");
+    const profileRoleInput = document.getElementById("profileRole");
+    const profileStatusInput = document.getElementById("profileStatus");
+    const profilePhotoImg = document.getElementById("profilePhotoImg"); // 🔹 New Photo Element
+
+    if (!profileNameInput) return;
+
+    try {
+        const user = await apiFetch("/users/me");
+        
+        profileNameInput.value = user.name || "N/A";
+        profileEmailInput.value = user.email || "N/A";
+        profileRoleInput.value = user.role || "N/A";
+        
+        if (profileStatusInput) {
+             profileStatusInput.value = user.status || "Active";
+        }
+
+        // 🔹 Logic to display the profile photo
+        if (profilePhotoImg) {
+            if (user.profilePhotoPath) {
+                // Assuming profilePhotoPath is a root-relative path like /uploads/profiles/pic.jpg
+                profilePhotoImg.src = user.profilePhotoPath;
+            } else {
+                // Default avatar if no photo is uploaded
+                profilePhotoImg.src = "https://via.placeholder.com/150?text=Profile"; 
+            }
+        }
+        
+    } catch (err) {
+        console.error("Error loading user profile:", err);
+        showAlert("Could not load profile details. " + err.message);
+    }
+}
+
+async function handleProfilePhotoUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('profilePhoto', file);
+
+    try {
+        // 🔹 New API call to upload photo
+        const data = await apiFetch("/users/profile-photo", {
+            method: "POST",
+            body: formData, // apiFetch handles FormData now
+        });
+
+        showAlert("✅ Profile photo uploaded successfully!");
+        // Refresh profile data to display the new photo
+        loadProfileData(); 
+        
+    } catch (err) {
+        console.error("Error uploading profile photo:", err);
+        showAlert("Error uploading photo: " + err.message);
+    }
+}
+
+
+function setupProfileSection() {
+    const changePasswordForm = document.getElementById("changePasswordForm");
+    if (changePasswordForm) {
+        changePasswordForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const currentPassword = document.getElementById("currentPassword")?.value.trim();
+            const newPassword = document.getElementById("newPassword")?.value.trim();
+            const confirmNewPassword = document.getElementById("confirmNewPassword")?.value.trim();
+
+            if (!currentPassword || !newPassword || !confirmNewPassword) {
+                return showAlert("All password fields are required.");
+            }
+            if (newPassword !== confirmNewPassword) {
+                return showAlert("New passwords do not match.");
+            }
+            if (newPassword.length < 6) { 
+                return showAlert("New password must be at least 6 characters long.");
+            }
+
+            try {
+                await apiFetch("/users/change-password", {
+                    method: "PUT",
+                    body: JSON.stringify({ currentPassword, newPassword }),
+                });
+
+                showAlert("✅ Password updated successfully! Please log in again.");
+                localStorage.clear();
+                redirectTo("login.html");
+                
+            } catch (err) {
+                showAlert("Error changing password: " + err.message);
+            }
+        });
+    }
+
+    // 🔹 New: Event listener for file input change
+    const profilePhotoInput = document.getElementById("profilePhotoInput");
+    if (profilePhotoInput) {
+        profilePhotoInput.addEventListener('change', handleProfilePhotoUpload);
+    }
+}
+
+
+/************************************************************
  * ADMIN FEATURES
  ************************************************************/
 function setupAdminFeatures() {
@@ -344,7 +468,6 @@ function setupAdminFeatures() {
 
     requestAdminBtn.addEventListener("click", async () => {
         try {
-            // FIX: Added body: JSON.stringify({}) to prevent 400 Bad Request
             const data = await apiFetch("/users/request-admin", {
                 method: "POST",
                 body: JSON.stringify({}),
@@ -400,10 +523,6 @@ function renderReports(reports) {
         return;
     }
 
-    // NOTE: This function does not render file links.
-    // The loadReports() function above is what renders the "My Reports" list.
-    // This renderReports() is only used by the analytics/filtering.
-    // If you want this view to also show file links, you must add the link logic here too.
     container.innerHTML = reports.map(report => `
         <div class="report-card">
             <h3>${report.title}</h3>
@@ -471,6 +590,7 @@ function initializeApp() {
     setupAdminFeatures();
     setupReportFilters();
     setupFileSearch();
+    setupProfileSection(); 
     
     console.log("✅ Script.js loaded with API_URL:", API_URL);
 }
