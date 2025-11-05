@@ -1,3 +1,5 @@
+// script.js
+
 /************************************************************
  * GLOBAL CONSTANTS & CONFIG
  ************************************************************/
@@ -133,10 +135,18 @@ function setupNavigation() {
         link.addEventListener('click', function (e) {
             e.preventDefault();
 
+            const targetId = this.getAttribute('href');
+            
+            // -----------------------------------------------------------------
+            // FIX: Prevent crash when href is just '#' (SyntaxError fix)
+            if (targetId === '#' || !targetId) { 
+                return; 
+            }
+            // -----------------------------------------------------------------
+
             document.querySelector('.sidebar nav a.active')?.classList.remove('active');
             this.classList.add('active');
 
-            const targetId = this.getAttribute('href');
             document.querySelectorAll('.content section').forEach(section => {
                 section.style.display = 'none';
             });
@@ -179,9 +189,11 @@ function setupReportForm() {
         }
 
         try {
+            // NOTE: fetch is used here instead of apiFetch because it handles FormData/file uploads correctly
             const res = await fetch(`${API_URL}/reports`, {
                 method: "POST",
                 headers: {
+                    // Content-Type is intentionally omitted; browser sets it for FormData
                     Authorization: `Bearer ${token}`,
                 },
                 body: formData,
@@ -333,6 +345,7 @@ function setupAdminFeatures() {
 
     requestAdminBtn.addEventListener("click", async () => {
         try {
+            // FIX: Added body: JSON.stringify({}) to prevent 400 Bad Request if backend expects JSON
             const data = await apiFetch("/users/request-admin", {
                 method: "POST",
                 body: JSON.stringify({}),
