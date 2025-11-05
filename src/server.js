@@ -7,6 +7,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import http from "http";
 import { Server } from "socket.io";
+import fs from "fs"; // 1. IMPORT FS
 
 // Local imports
 import connectDB from "./config/db.js";
@@ -32,7 +33,8 @@ const FRONTEND_URLS = [
   "http://localhost:5500",
   "http://127.0.0.1:5500",
   process.env.FRONTEND_URL,
-  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
+  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+  process.env.RENDER_URL // Add render URL if you have one
 ].filter(Boolean);
 
 console.log("🌐 Allowed origins:", FRONTEND_URLS);
@@ -40,7 +42,8 @@ console.log("🌐 Allowed origins:", FRONTEND_URLS);
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
-    if (FRONTEND_URLS.includes(origin) || origin.includes("vercel.app")) {
+    // Allow Render previews and the main URL
+    if (FRONTEND_URLS.includes(origin) || origin.includes("onrender.com")) {
       callback(null, true);
     } else {
       callback(new Error("CORS blocked: " + origin));
@@ -92,6 +95,12 @@ const __dirname = path.dirname(__filename);
 const publicPath = path.join(__dirname, "..", "public");
 const uploadsPath = path.join(__dirname, "..", "uploads");
 
+// 2. CREATE UPLOADS DIRECTORY (Fix for silent 500 error)
+if (!fs.existsSync(uploadsPath)) {
+  fs.mkdirSync(uploadsPath, { recursive: true });
+  console.log(`📁 Created upload directory: ${uploadsPath}`);
+}
+
 app.use(express.static(publicPath));
 app.use("/uploads", express.static(uploadsPath));
 
@@ -99,11 +108,12 @@ app.use("/uploads", express.static(uploadsPath));
  * SECURITY HEADERS
  ************************************************************/
 app.use((req, res, next) => {
+  // Loosened connect-src for Render and localhost
   res.setHeader(
     "Content-Security-Policy",
     "default-src 'self'; " +
-    "connect-src 'self' http://localhost:5500 http://127.0.0.1:5500 ws://localhost:5500 ws://127.0.0.1:5500 https://*; " +
-    "script-src 'self' 'unsafe-eval'; " +
+    "connect-src 'self' http://localhost:5500 http://127.0.0.1:5500 ws://localhost:5500 ws://127.0.0.1:5500 https://*.onrender.com wss://*.onrender.com; " +
+    "script-src 'self' 'unsafe-eval' https://cdn.socket.io https://cdn.jsdelivr.net; " + // Added CDNs
     "style-src 'self' 'unsafe-inline'; " +
     "img-src 'self' data: blob: /uploads/; " + 
     "font-src 'self' data:; " +
@@ -129,10 +139,17 @@ app.get("/api/health", (_, res) =>
 );
 
 /************************************************************
- * SPA FALLBACK
+ * SPA FALLBACK (FINAL FIX: Use app.use() )
  ************************************************************/
-app.get((req, res, next) => {
-  if (req.path.startsWith("/api/")) return next();
+// 3. THIS IS THE FIX FOR THE PathError
+// This middleware must be placed AFTER all API routes
+app.use((req, res, next) => {
+  // If the request path starts with /api/, it's a backend route that didn't match.
+  // Let it fall through to the 404 handler (or error handler).
+  if (req.path.startsWith("/api/")) {
+      return next(); 
+  }
+  // Otherwise, it's a frontend route. Serve the index.html
   res.sendFile(path.join(publicPath, "index.html"));
 });
 
@@ -141,6 +158,7 @@ app.get((req, res, next) => {
  ************************************************************/
 app.use((err, req, res, next) => {
   console.error("❌ Server Error:", err.message);
+  console.error(err.stack); // Log the full stack trace for better debugging
   res.status(500).json({ error: "Internal Server Error", message: err.message });
 });
 

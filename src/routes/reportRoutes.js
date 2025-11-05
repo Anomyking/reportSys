@@ -1,4 +1,5 @@
 // backend/routes/reportRoutes.js
+
 import express from "express";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 import {
@@ -16,8 +17,13 @@ const router = express.Router();
  * 📨 Report Routes
  ************************************************************/
 
-// ✅ Create new report (User)
-router.post("/", protect, createReport);
+// -----------------------------------------------------------
+// FIX: Consolidate the two POST routes into one that includes 
+// the file upload middleware to correctly process FormData.
+// -----------------------------------------------------------
+
+// ✅ Create new report (User) - Includes file upload middleware
+router.post("/", protect, upload.single('attachment'), createReport); 
 
 // ✅ Get reports
 // - Users see only their reports
@@ -26,9 +32,6 @@ router.get("/", protect, getReports);
 
 // ✅ Filter reports by category or status
 router.get("/filter", protect, getReportsByCategory);
-
-// ✅ Create new report (User) - Use upload.single() middleware
-router.post("/", protect, upload.single('attachment'), createReport);
 
 // ✅ Admin/Superadmin update report status
 router.put(
