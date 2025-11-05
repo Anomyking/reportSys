@@ -131,7 +131,7 @@ app.get("/api/health", (_, res) =>
 /************************************************************
  * SPA FALLBACK
  ************************************************************/
-app.get("/*", (req, res, next) => {
+app.get((req, res, next) => {
   if (req.path.startsWith("/api/")) return next();
   res.sendFile(path.join(publicPath, "index.html"));
 });

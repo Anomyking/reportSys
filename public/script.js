@@ -335,6 +335,7 @@ function setupAdminFeatures() {
         try {
             const data = await apiFetch("/users/request-admin", {
                 method: "POST",
+                body: JSON.stringify({}),
             });
 
             showAlert(data.message);
