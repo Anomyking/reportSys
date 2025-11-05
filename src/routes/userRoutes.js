@@ -39,12 +39,14 @@ router.get("/notifications", protect, getAllNotifications);
 router.put("/notifications/:id/read", protect, markNotificationRead);
 router.delete("/notifications/clear", protect, clearAllNotifications);
 
-// Profile routes
-router.get("/profile", protect, getProfile);
+// Profile routes (updated)
+router.get("/me", protect, getProfile); // <-- FIXED PATH
 router.put("/profile", protect, updateProfile);
-router.put("/profile/password", protect, changePassword);
-router.put("/profile/photo", protect, upload.single("photo"), uploadProfilePhoto);
-router.delete("/profile", protect, deleteAccount);
 
+// The client used 'profile-photo' and POST, so we match it:
+router.post("/profile-photo", protect, upload.single("photo"), uploadProfilePhoto); // <-- FIXED PATH & METHOD
+
+router.put("/profile/password", protect, changePassword);
+router.delete("/profile", protect, deleteAccount);
 
 export default router;
