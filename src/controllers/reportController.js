@@ -2,6 +2,7 @@
 import Report from "../models/Report.js";
 import { notifyAdmins, notifyUser } from "../utils/notify.js";
 import { io } from "../server.js";
+import path from "path"; // ✅ FIX 1: Import the 'path' module
 
 /************************************************************
  * 🔹 Create a new report
@@ -13,28 +14,41 @@ export const createReport = async (req, res) => {
     if (!title || !description || !category)
       return res.status(400).json({ message: "All fields are required." });
 
-    const report = await Report.create({
+    // ✅ FIX 2: Create a data object *first*
+    const reportData = {
       title,
       description,
       category,
       user: req.user.id,
       status: "Pending",
-    });
-    if (file) {
-            reportData.attachmentName = file.originalname;
-            // The path needs to be relative/public-facing. 
-            // Multer saves it as an absolute path; we adjust it for serving:
-            // Example: uploads/reports/attachment-12345.pdf
-            const relativePath = path.join("uploads", "reports", path.basename(file.path));
-            reportData.attachmentPath = relativePath.replace(/\\/g, '/'); // Use forward slashes for URLs
-            reportData.attachmentMimeType = file.mimetype;
-        }
+    };
 
+    // ✅ FIX 3: Add file details to the object *before* creating
+    if (file) {
+      // Use path.basename to get just the unique filename
+      const fileName = path.basename(file.path); 
+      
+      // Construct the correct public URL path.
+      // server.js serves '/uploads' -> '.../uploads' folder
+      // multer saves to -> '.../uploads/reports' folder
+      // So, the public URL is '/uploads/reports/FILENAME'
+      reportData.attachmentPath = `/uploads/reports/${fileName}`;
+      reportData.attachmentName = file.originalname;
+      reportData.attachmentMimeType = file.mimetype;
+    }
+
+    // Now, create the report in the database with all data
+    const report = await Report.create(reportData);
+
+    // Notifications can run after creation
     notifyAdmins?.(`📄 New ${category} report submitted by ${req.user.name}`, category);
     io.emit("reportUpdated", { message: "New report submitted" });
 
     res.status(201).json({ success: true, data: report });
+
   } catch (err) {
+    // Add a console.error for better debugging on Render
+    console.error("❌ CREATE REPORT FAILED:", err); 
     res.status(500).json({ message: err.message });
   }
 };
@@ -54,6 +68,7 @@ export const getReports = async (req, res) => {
 
     res.json(reports);
   } catch (err) {
+    console.error("❌ GET REPORTS FAILED:", err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -82,6 +97,7 @@ export const updateStatus = async (req, res) => {
 
     res.json({ success: true, data: report });
   } catch (err) {
+    console.error("❌ UPDATE STATUS FAILED:", err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -99,6 +115,7 @@ export const getReportsByCategory = async (req, res) => {
     const reports = await Report.find(filter).sort({ createdAt: -1 });
     res.json(reports);
   } catch (err) {
+    console.error("❌ FILTER REPORTS FAILED:", err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -112,7 +129,7 @@ export const updateAdminSummary = async (req, res) => {
     const { revenue, profit, inventoryValue, notes } = req.body;
 
     const report = await Report.findById(id).populate("user", "name email");
-    if (!report) return res.status(404).json({ message: "Report not found" });
+    if (!report) return res.status(4404).json({ message: "Report not found" });
 
     report.adminSummary = {
       revenue: Number(revenue) || 0,
@@ -135,6 +152,7 @@ export const updateAdminSummary = async (req, res) => {
 
     res.json({ success: true, data: report });
   } catch (err) {
+    console.error("❌ UPDATE SUMMARY FAILED:", err);
     res.status(500).json({ message: err.message });
   }
 };
