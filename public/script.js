@@ -137,12 +137,10 @@ function setupNavigation() {
 
             const targetId = this.getAttribute('href');
             
-            // -----------------------------------------------------------------
             // FIX: Prevent crash when href is just '#' (SyntaxError fix)
             if (targetId === '#' || !targetId) { 
                 return; 
             }
-            // -----------------------------------------------------------------
 
             document.querySelector('.sidebar nav a.active')?.classList.remove('active');
             this.classList.add('active');
@@ -255,7 +253,7 @@ async function loadReports() {
                 <p><small>${new Date(report.createdAt).toLocaleString()}</small></p>
                 ${report.attachmentName ? `
                     <p>📎 
-                        <a href="${API_URL}${report.attachmentPath}" target="_blank">
+                        <a href="${report.attachmentPath}" target="_blank">
                             View File: ${report.attachmentName}
                         </a>
                     </p>
@@ -307,7 +305,8 @@ async function loadFilesHistory(searchTerm = '') {
 
             let previewContent;
             if (isImage) {
-                previewContent = `<img src="${API_URL}${file.attachmentPath}" alt="${file.attachmentName}" class="file-preview-image">`;
+                // ✅ FIX: Removed ${API_URL} from src
+                previewContent = `<img src="${file.attachmentPath}" alt="${file.attachmentName}" class="file-preview-image">`;
             } else if (fileExtension === 'PDF') {
                 previewContent = `<div class="file-icon pdf-icon">📄 PDF</div>`;
             } else if (['DOCX', 'DOC'].includes(fileExtension)) {
@@ -325,7 +324,7 @@ async function loadFilesHistory(searchTerm = '') {
                     </div>
                     <p class="file-name" title="${file.attachmentName}">${file.attachmentName}</p>
                     <small>Report: ${file.title}</small>
-                    <a href="${API_URL}${file.attachmentPath}" target="_blank" class="download-link">View/Download</a>
+                    <a href="${file.attachmentPath}" target="_blank" class="download-link">View/Download</a>
                 </div>
             `;
         }).join("");
@@ -345,7 +344,7 @@ function setupAdminFeatures() {
 
     requestAdminBtn.addEventListener("click", async () => {
         try {
-            // FIX: Added body: JSON.stringify({}) to prevent 400 Bad Request if backend expects JSON
+            // FIX: Added body: JSON.stringify({}) to prevent 400 Bad Request
             const data = await apiFetch("/users/request-admin", {
                 method: "POST",
                 body: JSON.stringify({}),
@@ -401,6 +400,10 @@ function renderReports(reports) {
         return;
     }
 
+    // NOTE: This function does not render file links.
+    // The loadReports() function above is what renders the "My Reports" list.
+    // This renderReports() is only used by the analytics/filtering.
+    // If you want this view to also show file links, you must add the link logic here too.
     container.innerHTML = reports.map(report => `
         <div class="report-card">
             <h3>${report.title}</h3>
