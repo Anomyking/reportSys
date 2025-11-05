@@ -9,6 +9,7 @@ import { io } from "../server.js";
 export const createReport = async (req, res) => {
   try {
     const { title, description, category } = req.body;
+    const file = req.file;
     if (!title || !description || !category)
       return res.status(400).json({ message: "All fields are required." });
 
@@ -19,6 +20,15 @@ export const createReport = async (req, res) => {
       user: req.user.id,
       status: "Pending",
     });
+    if (file) {
+            reportData.attachmentName = file.originalname;
+            // The path needs to be relative/public-facing. 
+            // Multer saves it as an absolute path; we adjust it for serving:
+            // Example: uploads/reports/attachment-12345.pdf
+            const relativePath = path.join("uploads", "reports", path.basename(file.path));
+            reportData.attachmentPath = relativePath.replace(/\\/g, '/'); // Use forward slashes for URLs
+            reportData.attachmentMimeType = file.mimetype;
+        }
 
     notifyAdmins?.(`📄 New ${category} report submitted by ${req.user.name}`, category);
     io.emit("reportUpdated", { message: "New report submitted" });

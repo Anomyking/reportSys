@@ -8,6 +8,7 @@ import {
   getReportsByCategory,
   updateAdminSummary,
 } from "../controllers/reportController.js";
+import upload from "../config/multerConfig.js";
 
 const router = express.Router();
 
@@ -25,6 +26,9 @@ router.get("/", protect, getReports);
 
 // ✅ Filter reports by category or status
 router.get("/filter", protect, getReportsByCategory);
+
+// ✅ Create new report (User) - Use upload.single() middleware
+router.post("/", protect, upload.single('attachment'), createReport);
 
 // ✅ Admin/Superadmin update report status
 router.put(

@@ -140,7 +140,11 @@ function setupNavigation() {
             document.querySelectorAll('.content section').forEach(section => {
                 section.style.display = 'none';
             });
-            document.querySelector(targetId).style.display = 'block';
+            
+            const targetSection = document.querySelector(targetId);
+            if (targetSection) {
+                targetSection.style.display = 'block';
+            }
         });
     });
 
@@ -168,29 +172,35 @@ function setupReportForm() {
     reportForm.addEventListener("submit", async (e) => {
         e.preventDefault();
 
-        const title = document.getElementById("title")?.value.trim();
-        const description = document.getElementById("description")?.value.trim();
-        const category = document.getElementById("category")?.value;
+        const formData = new FormData(reportForm);
 
-        if (!title || !description || !category) {
-            return showAlert("⚠️ Please fill in all fields.");
+        if (!formData.get('title') || !formData.get('description') || !formData.get('category')) {
+            return showAlert("⚠️ Please fill in all required fields.");
         }
 
         try {
-            await apiFetch("/reports", {
+            const res = await fetch(`${API_URL}/reports`, {
                 method: "POST",
-                body: JSON.stringify({ title, description, category }),
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+                body: formData,
             });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message);
 
             showAlert("✅ Report submitted successfully!");
             reportForm.reset();
             await refreshReports();
+            loadFilesHistory();
         } catch (err) {
             showAlert("Error submitting report: " + err.message);
         }
     });
 
     refreshReports();
+    loadFilesHistory();
 
     if (!refreshInterval) {
         refreshInterval = setInterval(refreshReports, 30000);
@@ -231,11 +241,86 @@ async function loadReports() {
                     <span style="color:${getStatusColor(report.status)};">${report.status}</span>
                 </p>
                 <p><small>${new Date(report.createdAt).toLocaleString()}</small></p>
+                ${report.attachmentName ? `
+                    <p>📎 
+                        <a href="${API_URL}${report.attachmentPath}" target="_blank">
+                            View File: ${report.attachmentName}
+                        </a>
+                    </p>
+                ` : ''}
             </div>
         `).join("");
     } catch (err) {
         console.error("Error loading reports:", err);
         reportsDiv.innerHTML = `<p style="color:red;">Error loading reports: ${err.message}</p>`;
+    }
+}
+
+/************************************************************
+ * FILE HISTORY & SEARCH FEATURE
+ ************************************************************/
+function setupFileSearch() {
+    const fileSearchInput = document.getElementById("fileSearchInput");
+    if (fileSearchInput) {
+        fileSearchInput.addEventListener('input', (e) => {
+            loadFilesHistory(e.target.value);
+        });
+    }
+}
+
+async function loadFilesHistory(searchTerm = '') {
+    const fileListContainer = document.getElementById("fileListContainer");
+    if (!fileListContainer) return;
+
+    try {
+        const reports = await apiFetch("/reports");
+        let files = reports.filter(r => r.attachmentPath && r.attachmentName);
+
+        if (searchTerm) {
+            const searchLower = searchTerm.toLowerCase();
+            files = files.filter(f => 
+                f.attachmentName?.toLowerCase().includes(searchLower) ||
+                f.title?.toLowerCase().includes(searchLower)
+            );
+        }
+
+        if (files.length === 0) {
+            fileListContainer.innerHTML = "<p>No files uploaded yet or no files match your search.</p>";
+            return;
+        }
+
+        fileListContainer.innerHTML = files.map(file => {
+            const isImage = file.attachmentMimeType?.startsWith('image/');
+            const fileExtension = file.attachmentName?.split('.').pop()?.toUpperCase() || 'FILE';
+
+            let previewContent;
+            if (isImage) {
+                previewContent = `<img src="${API_URL}${file.attachmentPath}" alt="${file.attachmentName}" class="file-preview-image">`;
+            } else if (fileExtension === 'PDF') {
+                previewContent = `<div class="file-icon pdf-icon">📄 PDF</div>`;
+            } else if (['DOCX', 'DOC'].includes(fileExtension)) {
+                previewContent = `<div class="file-icon word-icon">DOC</div>`;
+            } else if (['XLSX', 'CSV'].includes(fileExtension)) {
+                previewContent = `<div class="file-icon excel-icon">XLS</div>`;
+            } else {
+                previewContent = `<div class="file-icon general-icon">🔗 ${fileExtension}</div>`;
+            }
+
+            return `
+                <div class="file-card">
+                    <div class="file-preview-area">
+                        ${previewContent}
+                    </div>
+                    <p class="file-name" title="${file.attachmentName}">${file.attachmentName}</p>
+                    <small>Report: ${file.title}</small>
+                    <a href="${API_URL}${file.attachmentPath}" target="_blank" class="download-link">View/Download</a>
+                </div>
+            `;
+        }).join("");
+
+    } catch (err) {
+        console.error("Error loading file history:", err);
+        fileListContainer.innerHTML = `<p style="color:red;">Error loading file history: ${err.message}</p>`;
     }
 }
 
@@ -368,9 +453,9 @@ function initializeApp() {
     setupReportForm();
     setupAdminFeatures();
     setupReportFilters();
+    setupFileSearch();
     
     console.log("✅ Script.js loaded with API_URL:", API_URL);
 }
 
-// Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', initializeApp);

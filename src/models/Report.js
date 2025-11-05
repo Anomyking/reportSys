@@ -2,9 +2,11 @@
 
 import mongoose from "mongoose";
 
-// Define the sub-schema for the admin's analytical summary
+/************************************************************
+ * ADMIN SUMMARY SUB-SCHEMA
+ ************************************************************/
 const AdminSummarySchema = new mongoose.Schema({
-    // Financial Metrics - Set explicit defaults for clean data handling
+    // Financial Metrics
     revenue: { 
         type: Number, 
         default: 0 
@@ -25,7 +27,7 @@ const AdminSummarySchema = new mongoose.Schema({
         default: '' 
     },
     
-    // Aligns with the logic in updateAdminSummary controller:
+    // Audit Fields
     updatedBy: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'User' 
@@ -33,21 +35,32 @@ const AdminSummarySchema = new mongoose.Schema({
     updatedAt: { 
         type: Date 
     },
-}, { _id: false }); // Prevents Mongoose from creating an extra _id on the sub-document
+}, { _id: false });
 
+/************************************************************
+ * MAIN REPORT SCHEMA
+ ************************************************************/
 const reportSchema = new mongoose.Schema({
-    // Main Report Fields
+    // Core Report Information
     title: { 
         type: String, 
-        required: true 
+        required: true,
+        trim: true
     },
     description: { 
         type: String, 
-        required: true 
+        required: true,
+        trim: true
     },
     category: {
         type: String,
-        enum: ["Finance Report", "Sales Report", "Inventory Report", "Resources Report"],
+        enum: [
+            "Finance Report", 
+            "Sales Report", 
+            "Inventory Report", 
+            "Resources Report",
+            "Status Report"
+        ],
         required: true 
     },
     user: { 
@@ -56,7 +69,20 @@ const reportSchema = new mongoose.Schema({
         required: true 
     },
     
-    // Admin Fields handled by updateReportStatus
+    // Attachment Fields
+    attachmentName: { 
+        type: String, 
+        trim: true 
+    },
+    attachmentPath: { 
+        type: String, 
+        trim: true 
+    },
+    attachmentMimeType: { 
+        type: String 
+    },
+
+    // Review & Status Fields
     status: { 
         type: String, 
         enum: ["Pending", "Approved", "Rejected"], 
@@ -68,12 +94,16 @@ const reportSchema = new mongoose.Schema({
     },
     reviewedAt: Date,
 
-    // ✅ Embedded Admin Summary Data
+    // Analytical Summary
     adminSummary: {
         type: AdminSummarySchema,
-        default: () => ({}) // Ensures adminSummary is always an object, ready to be updated
-    },
-}, { timestamps: true });
+        default: () => ({})
+    }
+}, { 
+    timestamps: true 
+});
 
-
+/************************************************************
+ * MODEL EXPORT
+ ************************************************************/
 export default mongoose.models.Report || mongoose.model("Report", reportSchema);
