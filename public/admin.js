@@ -1,7 +1,13 @@
 // --- CONFIGURATION (Assumed to be in config.js or defined globally) ---
-// const API_BASE_URL = 'http://localhost:5000/api/v1';
+/************************************************************
+ * GLOBAL CONSTANTS & CONFIG
+ ************************************************************/
+const API_URL = window.CONFIG.API_URL;
+const token = localStorage.getItem("token");
+let refreshInterval = null;
 
 // --- Global Variables for User State ---
+
 let currentUser = {
     role: 'user', // Default to prevent unauthorized access
     department: '',
