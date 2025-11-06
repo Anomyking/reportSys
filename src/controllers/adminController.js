@@ -363,3 +363,50 @@ export const getSystemNotifications = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch system notifications." });
   }
 };
+
+/**
+ * 🔸 Send a Global Notification to all users or a specific role (Superadmin-specific route)
+ */
+export const sendGlobalNotification = async (req, res) => {
+    try {
+        const { message, targetRole } = req.body;
+
+        if (!message || !targetRole) {
+            return res.status(400).json({ message: "Message and targetRole are required." });
+        }
+
+        // Validate target role
+        const validRoles = ["all", "user", "admin", "superadmin"];
+        if (!validRoles.includes(targetRole)) {
+             return res.status(400).json({ message: "Invalid targetRole specified." });
+        }
+
+        // 1. Create System-wide Notification record
+        const systemNotification = await Notification.create({
+            message: message,
+            target: targetRole,
+            sentBy: req.user.id, // The ID of the Superadmin sending it
+        });
+
+        // 2. Prepare user update query based on targetRole
+        let userUpdateQuery = {};
+        if (targetRole !== "all") {
+            userUpdateQuery.role = targetRole;
+        }
+
+        // 3. Push notification to the 'notifications' array of all targeted users
+        const updateResult = await User.updateMany(
+            userUpdateQuery,
+            { $push: { notifications: { message: message, isSystem: true } } }
+        );
+
+        res.json({
+            message: `Global notification sent successfully to ${updateResult.modifiedCount} user(s).`,
+            notification: systemNotification,
+        });
+
+    } catch (err) {
+        console.error("sendGlobalNotification error:", err);
+        res.status(500).json({ message: "Failed to send global notification." });
+    }
+};
