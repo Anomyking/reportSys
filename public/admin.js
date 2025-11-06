@@ -1,4 +1,3 @@
-// --- CONFIGURATION (Assumed to be in config.js or defined globally) ---
 /************************************************************
  * GLOBAL CONSTANTS & CONFIG
  ************************************************************/
@@ -7,6 +6,15 @@ const token = localStorage.getItem("token");
 let refreshInterval = null;
 
 // --- Global Variables for User State ---
+let currentUser = {
+    role: 'user', // Default to prevent unauthorized access
+    department: '',
+    id: ''
+};
+
+// Global variable to hold the chart instance
+let analyticsChart = null; 
+
 // --- Helper Functions ---
 
 /** Gets JWT from localStorage and formats the Authorization header. */
@@ -33,13 +41,18 @@ function showSection(sectionId) {
     }
     // Update active class in sidebar
     document.querySelectorAll('.sidebar nav a').forEach(a => a.classList.remove('active'));
-    document.querySelector(`.sidebar nav a[href="#${sectionId}"]`).classList.add('active');
+    // Ensure the element exists before trying to add a class
+    const navLink = document.querySelector(`.sidebar nav a[href="#${sectionId}"]`);
+    if (navLink) {
+        navLink.classList.add('active');
+    }
 }
 
 /** Fetches user profile to determine role and department */
 async function loadUserProfile() {
     try {
-        const response = await fetch(`${API_BASE_URL}/users/profile`, {
+        // ⭐ FIX: Using API_URL instead of API_BASE_URL
+        const response = await fetch(`${API_URL}/users/profile`, { 
             method: 'GET',
             headers: getAuthHeader()
         });
@@ -54,7 +67,7 @@ async function loadUserProfile() {
         // 1. Enforce Admin Access
         if (currentUser.role !== 'admin' && currentUser.role !== 'superadmin') {
             alert('Access Denied. Redirecting to user view.');
-            window.location.href = 'user-dashboard.html'; // Or login.html
+            window.location.href = 'user-dashboard.html';
             return;
         }
 
@@ -75,7 +88,6 @@ async function loadUserProfile() {
 
         // 3. Load Initial Data
         loadDashboardOverview();
-        // Since the user is an admin, the default view is Report Management
         loadReports(); 
         loadPromotionRequests();
         if (currentUser.role === 'superadmin') {
@@ -85,10 +97,11 @@ async function loadUserProfile() {
 
         // 4. Set default active section and profile details
         showSection('dashboardOverview');
-        document.getElementById('profileName').value = data.name;
-        document.getElementById('profileEmail').value = data.email;
-        document.getElementById('profileRole').value = data.role.toUpperCase();
-        document.getElementById('profileDepartment').value = data.department || 'N/A';
+        // Ensure elements exist before setting values
+        if (document.getElementById('profileName')) document.getElementById('profileName').value = data.name;
+        if (document.getElementById('profileEmail')) document.getElementById('profileEmail').value = data.email;
+        if (document.getElementById('profileRole')) document.getElementById('profileRole').value = data.role.toUpperCase();
+        if (document.getElementById('profileDepartment')) document.getElementById('profileDepartment').value = data.department || 'N/A';
 
 
     } catch (error) {
@@ -99,11 +112,77 @@ async function loadUserProfile() {
 
 // --- CORE ADMIN DATA LOADING FUNCTIONS ---
 
+/** Initializes or updates the Chart.js line chart with report status data. */
+function initializeAnalyticsChart(reportStats) {
+    const ctx = document.getElementById('companyAnalyticsChart'); 
+
+    if (!ctx) {
+        console.warn("Canvas element 'companyAnalyticsChart' not found. Skipping chart initialization.");
+        return;
+    }
+
+    const labels = ['Pending', 'Approved', 'Rejected'];
+    const dataCounts = [
+        reportStats.Pending || 0,
+        reportStats.Approved || 0,
+        reportStats.Rejected || 0,
+    ];
+
+    const chartData = {
+        labels: labels,
+        datasets: [{
+            label: 'Report Status Counts',
+            data: dataCounts,
+            backgroundColor: [
+                'rgba(241, 196, 15, 0.7)', 
+                'rgba(46, 204, 113, 0.7)', 
+                'rgba(231, 76, 60, 0.7)',  
+            ],
+            borderColor: [
+                'rgb(241, 196, 15)',
+                'rgb(46, 204, 113)',
+                'rgb(231, 76, 60)',
+            ],
+            borderWidth: 1
+        }]
+    };
+
+    if (analyticsChart) {
+        analyticsChart.data.datasets[0].data = dataCounts;
+        analyticsChart.update();
+    } else {
+        // Ensure the Chart global object is available before trying to instantiate
+        if (typeof Chart === 'undefined') {
+            console.error("Chart.js library is not loaded. Cannot initialize chart.");
+            return;
+        }
+        analyticsChart = new Chart(ctx, {
+            type: 'bar',
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    title: { display: true, text: 'Current Report Status Breakdown' }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Number of Reports' }
+                    }
+                }
+            }
+        });
+    }
+}
+
+
 /** Loads top-level stats from the backend. */
 async function loadDashboardOverview() {
-    // This connects to the GET /api/v1/admin/overview route
     try {
-        const response = await fetch(`${API_BASE_URL}/admin/overview`, { headers: getAuthHeader() });
+        // ⭐ FIX: Using API_URL
+        const response = await fetch(`${API_URL}/admin/overview`, { headers: getAuthHeader() });
         const data = await response.json();
         
         document.getElementById('stat-users-count').textContent = data.users.toLocaleString();
@@ -111,8 +190,8 @@ async function loadDashboardOverview() {
         document.getElementById('stat-admins-count').textContent = data.admins.toLocaleString();
         document.getElementById('stat-pending-count').textContent = data.reportStats.Pending?.toLocaleString() || '0';
         
-        // TODO: Call a separate function here to initialize the Chart.js chart 
-        // using the reportStats data if needed.
+        // ⭐ NEW: Initialize the Chart.js chart with fresh data
+        initializeAnalyticsChart(data.reportStats);
 
     } catch (error) {
         console.error('Failed to load overview data:', error);
@@ -131,8 +210,8 @@ async function loadReports() {
     const query = status ? `?status=${status}` : '';
 
     try {
-        // This connects to the GET /api/v1/admin/reports route
-        const response = await fetch(`${API_BASE_URL}/admin/reports${query}`, { headers: getAuthHeader() });
+        // ⭐ FIX: Using API_URL
+        const response = await fetch(`${API_URL}/admin/reports${query}`, { headers: getAuthHeader() });
         if (!response.ok) throw new Error('Failed to fetch reports.');
         
         const reports = await response.json();
@@ -153,9 +232,9 @@ async function loadPromotionRequests() {
     const container = document.getElementById('requestsContainer');
     container.innerHTML = '<p>Fetching requests...</p>';
 
-    // This connects to the GET /api/v1/admin/users/requests route
     try {
-        const response = await fetch(`${API_BASE_URL}/admin/users/requests`, { headers: getAuthHeader() });
+        // ⭐ FIX: Using API_URL
+        const response = await fetch(`${API_URL}/admin/users/requests`, { headers: getAuthHeader() });
         const data = await response.json();
 
         if (data.count === 0) {
@@ -174,16 +253,48 @@ async function loadPromotionRequests() {
 // --- SUPERADMIN FUNCTIONS (Stubs) ---
 
 async function loadAllUsers() {
-    // This connects to the GET /api/v1/admin/users route
-    if (currentUser.role === 'superadmin') {
-         // TODO: Implement the fetch logic and render user list
+    const container = document.getElementById('usersContainer');
+    if (currentUser.role !== 'superadmin' || !container) return;
+
+    container.innerHTML = '<p>Fetching all users...</p>';
+
+    try {
+        // This connects to the GET /api/v1/admin/users route
+        const response = await fetch(`${API_URL}/admin/users`, { headers: getAuthHeader() });
+        if (!response.ok) throw new Error('Failed to fetch all users.');
+
+        const users = await response.json();
+        
+        container.innerHTML = users.length === 0 
+            ? '<p>No other users found.</p>'
+            : users.map(user => createUserRow(user)).join(''); // Placeholder for render function
+
+    } catch (error) {
+        console.error('loadAllUsers error:', error);
+        container.innerHTML = '<p class="error">Error loading user list.</p>';
     }
 }
 
 async function loadSystemNotifications() {
-     // This connects to the GET /api/v1/admin/notifications/all route
-    if (currentUser.role === 'superadmin') {
-         // TODO: Implement the fetch logic and render notifications history
+    const container = document.getElementById('systemNotificationsContainer');
+    if (currentUser.role !== 'superadmin' || !container) return;
+    
+    container.innerHTML = '<p>Fetching system notifications history...</p>';
+
+    try {
+        // This connects to the GET /api/v1/admin/notifications/all route
+        const response = await fetch(`${API_URL}/admin/notifications/all`, { headers: getAuthHeader() });
+        if (!response.ok) throw new Error('Failed to fetch system notifications.');
+        
+        const notifications = await response.json();
+
+        container.innerHTML = notifications.length === 0 
+            ? '<p>No system notification history found.</p>'
+            : notifications.map(n => createNotificationRow(n)).join(''); // Placeholder for render function
+
+    } catch (error) {
+        console.error('loadSystemNotifications error:', error);
+        container.innerHTML = '<p class="error">Error loading notification history.</p>';
     }
 }
 
@@ -196,7 +307,8 @@ async function handleActionClick(event) {
         const action = event.target.dataset.action; // e.g., 'Approved' or 'Rejected'
         
         try {
-            const response = await fetch(`${API_BASE_URL}/admin/reports/${id}`, {
+            // ⭐ FIX: Using API_URL
+            const response = await fetch(`${API_URL}/admin/reports/${id}`, {
                 method: 'PUT',
                 headers: getAuthHeader(),
                 body: JSON.stringify({ status: action })
@@ -205,8 +317,8 @@ async function handleActionClick(event) {
             if (!response.ok) throw new Error(`Failed to set status to ${action}`);
             
             alert(`Report ${id} successfully marked as ${action}!`);
-            loadReports(); // Reload the list
-            loadDashboardOverview(); // Update stats
+            loadReports(); 
+            loadDashboardOverview(); 
             
         } catch (error) {
             console.error('Report action error:', error);
@@ -219,7 +331,8 @@ async function handleActionClick(event) {
         const action = event.target.dataset.action; // 'approve' or 'reject'
         
         try {
-            const response = await fetch(`${API_BASE_URL}/admin/users/${id}/${action}`, {
+            // ⭐ FIX: Using API_URL
+            const response = await fetch(`${API_URL}/admin/users/${id}/${action}`, {
                 method: 'PATCH',
                 headers: getAuthHeader()
             });
@@ -227,7 +340,8 @@ async function handleActionClick(event) {
             if (!response.ok) throw new Error(`Failed to ${action} user promotion.`);
 
             alert(`User promotion successfully ${action}d!`);
-            loadPromotionRequests(); // Reload list
+            loadPromotionRequests(); 
+            loadDashboardOverview();
         } catch (error) {
             console.error('Promotion action error:', error);
             alert(`Error processing request: ${error.message}`);
@@ -245,16 +359,18 @@ async function handleNotificationSubmit(event) {
     const target = document.getElementById('notificationTarget').value;
 
     try {
-        const response = await fetch(`${API_BASE_URL}/admin/notifications`, {
+        // ⭐ FIX: Using API_URL
+        const response = await fetch(`${API_URL}/admin/notifications`, {
             method: 'POST',
             headers: getAuthHeader(),
-            body: JSON.stringify({ message, target })
+            body: JSON.stringify({ message, target: target }) // Correct body payload
         });
         
         if (!response.ok) throw new Error('Failed to send notification.');
         
         alert('Global notification sent successfully!');
         document.getElementById('globalNotificationForm').reset();
+        loadSystemNotifications(); // Refresh the list of notifications
 
     } catch (error) {
         console.error('Notification error:', error);
@@ -298,6 +414,31 @@ function createRequestCard(user) {
     `;
 }
 
+function createUserRow(user) {
+    const isSuper = user.role === 'superadmin';
+    return `
+        <div class="user-row ${isSuper ? 'superadmin-row' : ''}">
+            <span>${user.name}</span>
+            <span>${user.email}</span>
+            <span>${user.role}</span>
+            <span>${user.department || 'N/A'}</span>
+            <button class="change-role-btn" data-id="${user._id}" data-current-role="${user.role}" 
+                ${isSuper && currentUser.id !== user._id ? 'disabled' : ''}>
+                Change Role
+            </button>
+        </div>
+    `;
+}
+
+function createNotificationRow(notification) {
+    return `
+        <div class="notification-row">
+            <p>${notification.message}</p>
+            <small>Target: ${notification.target} | Sent: ${new Date(notification.date).toLocaleString()}</small>
+        </div>
+    `;
+}
+
 // --- INITIALIZATION ---
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -308,7 +449,16 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelector('.sidebar nav').addEventListener('click', (e) => {
         if (e.target.tagName === 'A' && e.target.hash) {
             e.preventDefault();
-            showSection(e.target.hash.substring(1));
+            const sectionId = e.target.hash.substring(1);
+            showSection(sectionId);
+
+            // Conditional data loading for Superadmin sections after navigation
+            if (sectionId === 'userManagement' && currentUser.role === 'superadmin') {
+                loadAllUsers();
+            }
+            if (sectionId === 'systemNotifications' && currentUser.role === 'superadmin') {
+                loadSystemNotifications();
+            }
         }
     });
 
@@ -316,7 +466,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelector('main.content').addEventListener('click', handleActionClick);
 
     // 4. Filter Button Listener
-    document.getElementById('filterReportsBtn').addEventListener('click', loadReports);
+    const filterBtn = document.getElementById('filterReportsBtn');
+    if (filterBtn) {
+        filterBtn.addEventListener('click', loadReports);
+    }
+
 
     // 5. Global Notification Listener
     const notificationForm = document.getElementById('globalNotificationForm');
@@ -325,9 +479,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 6. Logout Listener
-    document.getElementById('logoutBtn').addEventListener('click', (e) => {
-        e.preventDefault();
-        localStorage.removeItem('token');
-        window.location.href = 'login.html';
-    });
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            localStorage.removeItem('token');
+            window.location.href = 'login.html';
+        });
+    }
 });
