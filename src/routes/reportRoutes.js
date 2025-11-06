@@ -9,7 +9,8 @@ import {
   getReportsByCategory,
   updateAdminSummary,
 } from "../controllers/reportController.js";
-import upload from "../config/multerConfig.js";
+import upload from "../config/cloudinaryConfig.js";
+import upload from "../../config/multerConfig.js";
 
 const router = express.Router();
 

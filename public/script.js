@@ -369,9 +369,9 @@ async function loadProfileData() {
         if (profileDeptInput) profileDeptInput.value = user.department || "";
 
         profilePhotoImg.src = user.profilePhotoPath 
-            ? user.profilePhotoPath 
-            : "https://via.placeholder.com/150?text=Profile";
-        
+    ? user.profilePhotoPath 
+    : "/public/userplace.png";
+
     } catch (err) {
         showAlert("Could not load profile: " + err.message);
     }
