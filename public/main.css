@@ -36,12 +36,20 @@ a:hover {
   color: var(--secondary);
 }
 
-/* ---------- HOME MAIN ---------- */
+/* * 🚀 UPDATED CODE HERE 🚀
+ * This centers the form container (the white box) and makes sure 
+ * the inputs fill its width perfectly.
+ */
 main {
+  /* Set a max-width to define the form's size */
+  max-width: 400px;
+  width: 90%; 
+  /* Centers the main box horizontally on the page */
+  margin: 50px auto; 
+  
+  /* Existing styles retained */
   text-align: center;
-  margin-top: 50px;
   background: var(--white);
-  display: inline-block;
   padding: 40px 60px;
   border-radius: 10px;
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
@@ -51,10 +59,16 @@ main:hover {
   transform: translateY(-5px);
 }
 
-/* ---------- FORM CONTAINER ---------- */
+/* * NOTE: The .form-container block below is redundant if you are using the 
+ * <main> tag for your form. I recommend using the <main> tag and 
+ * removing the .form-container block, but I've kept both for now.
+ * * If you use a class instead of <main>, use the .form-container block
+ * and remove the <main> block.
+ */
+/* ---------- FORM CONTAINER (Alternative if not using <main>) ---------- */
 .form-container {
   width: 350px;
-  margin: 80px auto;
+  margin: 80px auto; /* This already centers the container */
   background: var(--white);
   padding: 30px;
   border-radius: 12px;
@@ -72,6 +86,7 @@ h2 {
 
 /* ---------- INPUTS & BUTTONS ---------- */
 input, textarea, select, button {
+  /* This ensures they span 100% of the centered parent container (main or .form-container) */
   width: 100%;
   margin: 10px 0;
   padding: 12px;
@@ -79,6 +94,8 @@ input, textarea, select, button {
   border-radius: 6px;
   font-size: 1rem;
   transition: all 0.2s ease-in-out;
+  /* Add box-sizing to ensure padding doesn't push the width out */
+  box-sizing: border-box; 
 }
 
 input:focus, textarea:focus, select:focus {
@@ -86,6 +103,17 @@ input:focus, textarea:focus, select:focus {
   outline: none;
   box-shadow: 0 0 4px var(--primary);
 }
+
+/* --- NEW DISABLED STYLES --- */
+input:disabled, 
+select:disabled, 
+button:disabled {
+  background-color: #f1f1f1;
+  color: #a0a0a0;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+/* ------------------------- */
 
 button {
   background: var(--primary);
@@ -110,7 +138,8 @@ button:hover {
 @media (max-width: 600px) {
   .form-container, main {
     width: 90%;
-    padding: 20px;
+    /* Removed padding: 20px 0; to ensure uniform padding */
+    padding: 20px; 
     margin: 30px auto;
   }
 
