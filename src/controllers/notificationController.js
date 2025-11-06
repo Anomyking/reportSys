@@ -1,20 +1,17 @@
 // backend/controllers/notificationController.js
 import User from "../models/User.js";
-
-/**
- * ✅ Get all notifications for the logged-in user
- */
 export const getAllNotifications = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("notifications");
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    res.json(user.notifications.sort((a, b) => b.date - a.date));
+    // ✅ REFINEMENT: Explicitly sort by createdAt property (which is a Date object)
+    // Using .getTime() ensures reliable numerical date comparison.
+    res.json(user.notifications.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
-
 /**
  * ✅ Mark a notification as read
  */

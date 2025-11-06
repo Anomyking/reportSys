@@ -217,7 +217,7 @@ async function loadReports() {
 }
 
 /****************************************
- * NOTIFICATIONS
+ * NOTIFICATIONS - FIXED
  ****************************************/
 async function loadNotifications() {
     const box = document.getElementById("notificationsList");
@@ -225,20 +225,22 @@ async function loadNotifications() {
     box.innerHTML = `<p>Loading...</p>`;
 
     try {
-        // ➡️ CORRECTED: Uses /admin/notifications/all (Superadmin route for system notifications)
-        const res = await fetch(`${API_URL}/admin/notifications/all`, {
+        // ✅ FIX 1: Use the correct user-specific route /api/notifications/
+        const res = await fetch(`${API_URL}/api/notifications/`, {
             headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!res.ok) throw await handleResponseError(res);
         let notes = await res.json();
-        if (notes.data) notes = notes.data;
+        // Since your backend returns a direct array of notifications, this check might not be needed
+        // but it's safe to keep if the response is sometimes wrapped in { data: [] }
+        if (notes.data) notes = notes.data; 
 
         box.innerHTML = notes.length
             ? notes.map((n) => `
           <div class="notification ${n.read ? "" : "unread"}">
             <p>${n.message}</p>
-            <small>${formatDate(n.date)}</small>
+            <small>${formatDate(n.createdAt)}</small> 
           </div>`
             ).join("")
             : "<p>No notifications.</p>";
@@ -248,7 +250,6 @@ async function loadNotifications() {
         showAlert(err.message);
     }
 }
-
 /****************************************
  * CHART
  ****************************************/
