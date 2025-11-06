@@ -157,7 +157,7 @@ async function updateUserRole(id, role) {
 }
 
 /****************************************
- * REPORTS
+ * REPORTS (MODIFIED)
  ****************************************/
 async function loadReports() {
     const container = document.getElementById("reportsContainer");
@@ -173,6 +173,25 @@ async function loadReports() {
         if (!res.ok) throw await handleResponseError(res);
         let reports = await res.json();
         if (reports.data) reports = reports.data;
+
+        // ----------------------------------------------------
+        // ⭐ NEW: Sorting Logic Implementation ⭐
+        // ----------------------------------------------------
+        reports.sort((a, b) => {
+            const statusA = a.status;
+            const statusB = b.status;
+            const dateA = new Date(a.dateSubmitted || a.date); // Assuming a 'date' or 'dateSubmitted' field
+            const dateB = new Date(b.dateSubmitted || b.date);
+
+            // 1. Prioritize 'Pending' reports at the top
+            if (statusA === "Pending" && statusB !== "Pending") return -1;
+            if (statusA !== "Pending" && statusB === "Pending") return 1;
+
+            // 2. If both are 'Pending' (or both are Approved/Rejected), sort by time submitted (newest first)
+            // Sorting in descending order (newest date is greater, so it comes first: dateB - dateA)
+            return dateB - dateA;
+        });
+        // ----------------------------------------------------
 
         container.innerHTML = reports.length
             ? reports.map((r) => `
@@ -196,28 +215,6 @@ async function loadReports() {
         showAlert(err.message);
     }
 }
-
-window.updateReportStatus = async function (id, status) {
-    try {
-        // ➡️ CORRECTED: Uses /admin/reports/:id (Shared route)
-        const res = await fetch(`${API_URL}/admin/reports/${id}`, {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ status }),
-        });
-
-        if (!res.ok) throw await handleResponseError(res);
-
-        showAlert(`Report ${status}`);
-        loadReports();
-        loadOverview();
-    } catch (err) {
-        showAlert(err.message);
-    }
-};
 
 /****************************************
  * NOTIFICATIONS
