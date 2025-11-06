@@ -1,405 +1,334 @@
-/************************************************************
- * ADMIN DASHBOARD SCRIPT (Consolidated)
- * Combines: Config, API handling, Socket, Analytics, and Forms
- ************************************************************/
+// --- CONFIGURATION (Assumed to be in config.js or defined globally) ---
+// const API_BASE_URL = 'http://localhost:5000/api/v1';
 
-/* ----------------------- CONFIG -------------------------- */
-const API_URL = window.CONFIG.API_URL;
-const BASE_URL = window.CONFIG.BASE_URL;
+// --- Global Variables for User State ---
+let currentUser = {
+    role: 'user', // Default to prevent unauthorized access
+    department: '',
+    id: ''
+};
 
-const token = localStorage.getItem("token");
-// Redirect if not logged in or role check (optional, better handled by backend/router protection)
-if (!token) window.location.href = "/login.html"; 
+// --- Helper Functions ---
 
-let refreshInterval = null;
-let bentoChartInstance = null; // Chart instance for the trend chart
-
-/* ----------------------- HELPERS ------------------------- */
-function showAlert(msg) {
-    alert(msg);
-}
-
-function escapeHtml(str = "") {
-    return String(str).replace(/[&<>]/g, (tag) =>
-        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[tag] || tag)
-    );
-}
-
-function formatDate(dateString) {
-    return new Date(dateString).toLocaleString();
-}
-
-async function parsePossibleWrappedResponse(res) {
-    const text = await res.text();
-    try {
-        // Handle common API response formats (plain array, or { data: array })
-        const parsed = JSON.parse(text || "{}"); 
-        if (Array.isArray(parsed)) return { ok: res.ok, data: parsed };
-        if (parsed && Array.isArray(parsed.data)) return { ok: res.ok, data: parsed.data };
-        return { ok: res.ok, data: parsed };
-    } catch {
-        // Return raw text if parsing fails (e.g., non-JSON error response)
-        return { ok: res.ok, error: "Invalid JSON response from server", raw: text };
+/** Gets JWT from localStorage and formats the Authorization header. */
+function getAuthHeader() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = 'login.html'; // Redirect if no token
+        return {};
     }
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+    };
 }
 
-/* ---------------------- SOCKET SETUP --------------------- */
-// Initializes the socket connection
-const socket = io(BASE_URL, { transports: ["websocket", "polling"] });
-const liveDot = document.getElementById("liveDot");
-const liveText = document.getElementById("liveText");
-
-socket.on("connect", () => {
-    if (liveDot) liveDot.style.background = "limegreen";
-    if (liveText) liveText.textContent = "Live Connected";
-    console.log("✅ Socket connected");
-});
-
-socket.on("disconnect", () => {
-    if (liveDot) liveDot.style.background = "gray";
-    if (liveText) liveText.textContent = "Disconnected";
-    console.log("❌ Socket disconnected");
-});
-
-socket.on("connect_error", (error) => {
-    console.warn("⚠️ Socket connection error:", error.message);
-    if (liveDot) liveDot.style.background = "orange";
-    if (liveText) liveText.textContent = "Connection Issues";
-});
-
-/* 🔄 Throttle socket updates (max once per 3s) */
-let lastUpdate = 0;
-function throttle(fn) {
-    const now = Date.now();
-    if (now - lastUpdate >= 3000) {
-        lastUpdate = now;
-        fn();
-    }
-}
-
-// Listener for report updates from the backend
-socket.on("reportUpdate", () => throttle(loadAllDashboardData));
-
-/* --------------------- INITIAL LOAD ---------------------- */
-document.addEventListener("DOMContentLoaded", () => {
-    loadAllDashboardData();
-
-    // Set up auto-refresh every 60s
-    if (!refreshInterval) {
-        refreshInterval = setInterval(loadAllDashboardData, 60000);
-    }
-
-    // Logout handler
-    document.getElementById("logoutBtn")?.addEventListener("click", () => {
-        localStorage.clear();
-        window.location.href = "/login.html";
+/** Shows a specific section and hides all others. */
+function showSection(sectionId) {
+    document.querySelectorAll('main.content section').forEach(section => {
+        section.style.display = 'none';
     });
-
-    // Attach summary form handler
-    const summaryForm = document.getElementById("summaryForm");
-    if (summaryForm) summaryForm.addEventListener("submit", handleManualSummaryForm);
-
-    // ⭐ NEW ATTACHMENT: ID Finder button handler
-    const searchIdBtn = document.getElementById("searchIdBtn");
-    if (searchIdBtn) searchIdBtn.addEventListener("click", findReportIdByTitle);
-});
-
-/* ----------------- LOAD ALL DASHBOARD DATA --------------- */
-async function loadAllDashboardData() {
-    await Promise.all([
-        loadOverview(),
-        loadReports(),
-        loadNotifications(),
-        loadBentoAnalytics(),
-    ]);
-}
-
-/* --------------------- OVERVIEW -------------------------- */
-async function loadOverview() {
-    try {
-        const res = await fetch(`${API_URL}/admin/overview`, {
-            headers: { Authorization: `Bearer ${token}` },
-        });
-        const parsed = await parsePossibleWrappedResponse(res);
-        
-        if (!res.ok) throw new Error(parsed.error || "Failed to load overview");
-
-        const overviewData = parsed.data || {};
-
-        // 1. Update Total Reports count
-        const totalReportsEl = document.getElementById("totalReports");
-        if (totalReportsEl) totalReportsEl.textContent = overviewData.reports || 0;
-
-        // 2. Prepare stats for the chart
-        const stats = {
-            Pending: overviewData.reportStats?.Pending || 0,
-            Approved: overviewData.reportStats?.Approved || 0,
-            Rejected: overviewData.reportStats?.Rejected || 0,
-        };
-
-        renderChart(stats);
-    } catch (err) {
-        console.error("Overview load error:", err);
+    const activeSection = document.getElementById(sectionId);
+    if (activeSection) {
+        activeSection.style.display = 'block';
     }
+    // Update active class in sidebar
+    document.querySelectorAll('.sidebar nav a').forEach(a => a.classList.remove('active'));
+    document.querySelector(`.sidebar nav a[href="#${sectionId}"]`).classList.add('active');
 }
 
-/* --------------------- REPORTS --------------------------- */
-async function loadReports() {
-    const container = document.getElementById("reportsContainer");
-    if (!container) return;
-
+/** Fetches user profile to determine role and department */
+async function loadUserProfile() {
     try {
-        // Uses consolidated /admin route for department reports
-        const res = await fetch(`${API_URL}/admin/reports`, {
-            headers: { Authorization: `Bearer ${token}` },
+        const response = await fetch(`${API_BASE_URL}/users/profile`, {
+            method: 'GET',
+            headers: getAuthHeader()
         });
-        const parsed = await parsePossibleWrappedResponse(res);
-        if (!res.ok) throw new Error(parsed.error || "Failed to fetch reports");
 
-        const reports = Array.isArray(parsed.data) ? parsed.data : [];
-        if (!reports.length) {
-            container.innerHTML = "<p>No reports available.</p>";
+        if (!response.ok) throw new Error('Failed to fetch profile.');
+        
+        const data = await response.json();
+        currentUser.role = data.role;
+        currentUser.department = data.department;
+        currentUser.id = data._id;
+
+        // 1. Enforce Admin Access
+        if (currentUser.role !== 'admin' && currentUser.role !== 'superadmin') {
+            alert('Access Denied. Redirecting to user view.');
+            window.location.href = 'user-dashboard.html'; // Or login.html
             return;
         }
 
-        container.innerHTML = reports
-            .map(
-                (r) => `
-      <div class="report-card">
-        <h3>${escapeHtml(r.title)}</h3>
-        <p>${escapeHtml(r.description)}</p>
-        <p><strong>Category:</strong> ${escapeHtml(r.category)}</p>
-        <p><strong>Status:</strong> ${escapeHtml(r.status)}</p>
-        <p><small>ID: ${escapeHtml(r._id)}</small></p>
-        <p><small>By: ${escapeHtml(r.user?.name || "Unknown")}</small></p>
-        <div class="report-actions">
-          ${r.status === "Pending"
-                      ? `<button onclick="updateReportStatus('${r._id}', 'Approved')">Approve</button>
-             <button onclick="updateReportStatus('${r._id}', 'Rejected')">Reject</button>`
-                      : ""}
-        </div>
-      </div>`
-            )
-            .join("");
-    } catch (err) {
-        container.innerHTML = `<p style="color:red;">Error: ${escapeHtml(err.message)}</p>`;
-    }
-    // Return reports for local search function
-    return Array.isArray(parsed.data) ? parsed.data : [];
-}
-
-/* ----------------- REPORT STATUS UPDATE ----------------- */
-window.updateReportStatus = async function(reportId, status) {
-    try {
-        // Uses consolidated /admin route for updating status
-        const res = await fetch(`${API_URL}/admin/reports/${reportId}`, {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ status }),
-        });
-
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || "Failed to update status");
-
-        showAlert(`✅ Report marked as ${status}`);
-        socket.emit("reportUpdate"); // trigger live refresh to all clients
-        await loadAllDashboardData();
-    } catch (err) {
-        showAlert("❌ " + err.message);
-    }
-};
-
-// ⭐ NEW HELPER FUNCTION: Find ID by Title (simulates better UX)
-async function findReportIdByTitle() {
-    const titleInput = document.getElementById("reportTitleSearch").value.trim();
-    const idInput = document.getElementById("reportId");
-
-    if (!titleInput) {
-        idInput.value = "";
-        return showAlert("⚠️ Please enter a Report Title to search for its ID.");
-    }
-
-    try {
-        // Re-load reports to ensure we have the latest list
-        const reports = await loadReports(); 
+        // 2. Configure UI based on Role
+        const superadminMenu = document.getElementById('superadminMenu');
+        const departmentInfo = document.getElementById('department-info');
         
-        const foundReport = reports.find(r => r.title.toLowerCase() === titleInput.toLowerCase());
-
-        if (foundReport) {
-            idInput.value = foundReport._id;
-            showAlert(`✅ ID found for "${foundReport.title}"! Status: ${foundReport.status}`);
-        } else {
-            idInput.value = "";
-            showAlert(`❌ Report with title "${titleInput}" not found in your department.`);
+        if (currentUser.role === 'superadmin') {
+            if (superadminMenu) superadminMenu.style.display = 'block';
+            if (departmentInfo) departmentInfo.style.display = 'none';
+        } else { // Normal Admin
+            if (superadminMenu) superadminMenu.style.display = 'none';
+            if (departmentInfo) {
+                departmentInfo.style.display = 'block';
+                document.getElementById('admin-department-name').textContent = currentUser.department;
+            }
         }
 
-    } catch (err) {
-        showAlert("❌ Failed to search reports.");
-        console.error("Search error:", err);
+        // 3. Load Initial Data
+        loadDashboardOverview();
+        // Since the user is an admin, the default view is Report Management
+        loadReports(); 
+        loadPromotionRequests();
+        if (currentUser.role === 'superadmin') {
+             loadAllUsers(); 
+             loadSystemNotifications();
+        }
+
+        // 4. Set default active section and profile details
+        showSection('dashboardOverview');
+        document.getElementById('profileName').value = data.name;
+        document.getElementById('profileEmail').value = data.email;
+        document.getElementById('profileRole').value = data.role.toUpperCase();
+        document.getElementById('profileDepartment').value = data.department || 'N/A';
+
+
+    } catch (error) {
+        console.error('Initialization error:', error);
+        window.location.href = 'login.html';
     }
 }
 
+// --- CORE ADMIN DATA LOADING FUNCTIONS ---
 
-/* ----------------- MANUAL SUMMARY FORM ------------------ */
-// ✅ FIXED: Simplified ID validation as the backend now handles the CastError gracefully
-async function handleManualSummaryForm(e) {
-    e.preventDefault();
-
-    const id = document.getElementById("reportId").value.trim();
-    const revenue = parseFloat(document.getElementById("revenue").value) || 0;
-    const profit = parseFloat(document.getElementById("profit").value) || 0;
-    const inventoryValue = parseFloat(document.getElementById("inventoryValue").value) || 0;
-    const notes = document.getElementById("notes").value.trim();
-
-    // 🛑 SIMPLIFIED CHECK: Only verify ID exists and isn't the placeholder 'new'. 
-    if (!id || id.toLowerCase() === "new") { 
-        return showAlert("⚠️ Please enter a Report ID to update its summary.");
-    }
-
+/** Loads top-level stats from the backend. */
+async function loadDashboardOverview() {
+    // This connects to the GET /api/v1/admin/overview route
     try {
-        // Uses consolidated /admin route for updating summary
-        const res = await fetch(`${API_URL}/admin/reports/${id}/summary`, {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ revenue, profit, inventoryValue, notes }),
-        });
-
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || "Failed to update summary");
-
-        showAlert("✅ Summary updated successfully!");
-        e.target.reset();
-        socket.emit("reportUpdate");
-        await loadAllDashboardData();
-    } catch (err) {
-        showAlert("❌ " + err.message);
-    }
-}
-
-/* -------------------- NOTIFICATIONS --------------------- */
-async function loadNotifications() {
-    const container = document.getElementById("notificationsContainer");
-    if (!container) return;
-
-    try {
-        // NOTE: This route should fetch USER-SPECIFIC notifications (via userRoutes.js)
-        const res = await fetch(`${API_URL}/notifications`, { 
-            headers: { Authorization: `Bearer ${token}` },
-        });
-        const parsed = await parsePossibleWrappedResponse(res);
-        // Assuming the backend returns an array of notifications in `parsed.data` or just `parsed`
-        const notes = Array.isArray(parsed.data) ? parsed.data : (Array.isArray(parsed) ? parsed : []);
-
-        container.innerHTML = notes.length
-            ? notes
-                .map(
-                    (n) => `
-        <div class="notification ${n.read ? "read" : "unread"}">
-          <p>${escapeHtml(n.message)}</p>
-          <small>${formatDate(n.date)}</small>
-        </div>`
-                )
-                .join("")
-            : "<p>No notifications.</p>";
-    } catch (err) {
-        console.error("Notifications error:", err);
-    }
-}
-
-/* -------------------- REPORTS CHART --------------------- */
-function renderChart(stats) {
-    const ctx = document.getElementById("reportsChart");
-    if (!ctx) return;
-
-    // Destroys previous instance if it exists
-    if (ctx._chartInstance) ctx._chartInstance.destroy(); 
-
-    ctx._chartInstance = new Chart(ctx, {
-        type: "doughnut",
-        data: {
-            labels: ["Pending", "Approved", "Rejected"],
-            datasets: [
-                {
-                    data: [stats.Pending, stats.Approved, stats.Rejected],
-                    backgroundColor: ["#FFDEDE", "#FF0B55", "#CF0F47"],
-                },
-            ],
-        },
-    });
-}
-
-/* ------------------ BENTO ANALYTICS --------------------- */
-async function loadBentoAnalytics() {
-    try {
-        // NOTE: Using /admin/reports to get data. This ensures the Admin only sees their department's data.
-        const res = await fetch(`${API_URL}/admin/reports`, { 
-            headers: { Authorization: `Bearer ${token}` },
-        });
-        const parsed = await parsePossibleWrappedResponse(res);
-        const reports = Array.isArray(parsed.data) ? parsed.data : [];
-
-        // Filter for approved reports that have adminSummary data
-        const approved = reports.filter((r) => r.status === "Approved" && r.adminSummary);
+        const response = await fetch(`${API_BASE_URL}/admin/overview`, { headers: getAuthHeader() });
+        const data = await response.json();
         
-        // Calculate totals
-        const totalRevenue = approved.reduce((s, r) => s + (r.adminSummary.revenue || 0), 0);
-        const totalProfit = approved.reduce((s, r) => s + (r.adminSummary.profit || 0), 0);
-        const totalInventory = approved.reduce((s, r) => s + (r.adminSummary.inventoryValue || 0), 0);
+        document.getElementById('stat-users-count').textContent = data.users.toLocaleString();
+        document.getElementById('stat-reports-count').textContent = data.reports.toLocaleString();
+        document.getElementById('stat-admins-count').textContent = data.admins.toLocaleString();
+        document.getElementById('stat-pending-count').textContent = data.reportStats.Pending?.toLocaleString() || '0';
+        
+        // TODO: Call a separate function here to initialize the Chart.js chart 
+        // using the reportStats data if needed.
 
-        const revenueEl = document.getElementById("totalRevenue");
-        const profitEl = document.getElementById("totalProfit");
-        const inventoryEl = document.getElementById("totalInventory");
-        const totalReportsEl = document.getElementById("totalReports"); 
-
-        // Update elements
-        if (revenueEl) revenueEl.textContent = "$" + totalRevenue.toLocaleString();
-        if (profitEl) profitEl.textContent = "$" + totalProfit.toLocaleString();
-        if (inventoryEl) inventoryEl.textContent = "$" + totalInventory.toLocaleString();
-        if (totalReportsEl) totalReportsEl.textContent = reports.length.toLocaleString(); 
-
-        renderBentoTrendChart(approved);
-    } catch (err) {
-        console.error("Bento analytics error:", err);
+    } catch (error) {
+        console.error('Failed to load overview data:', error);
+        alert('Could not load dashboard stats.');
     }
 }
 
-/* Render bento trend chart */
-function renderBentoTrendChart(reports) {
-    const ctx = document.getElementById("bentoTrendChart");
-    if (!ctx) return;
 
-    // Map data for the chart
-    const labels = reports.map((r) =>
-        r.reviewedAt ? new Date(r.reviewedAt).toLocaleDateString() : ""
-    );
-    const revenue = reports.map((r) => r.adminSummary.revenue || 0);
-    const profit = reports.map((r) => r.adminSummary.profit || 0);
-    const inventory = reports.map((r) => r.adminSummary.inventoryValue || 0);
+/** Loads department-filtered reports (handled by the backend) */
+async function loadReports() {
+    const container = document.getElementById('reportsContainer');
+    container.innerHTML = '<p>Fetching reports...</p>';
+    
+    // Get filter values
+    const status = document.getElementById('statusFilter').value;
+    const query = status ? `?status=${status}` : '';
 
-    if (bentoChartInstance) bentoChartInstance.destroy();
-
-    bentoChartInstance = new Chart(ctx, {
-        type: "line",
-        data: {
-            labels,
-            datasets: [
-                { label: "Revenue", data: revenue, borderColor: "#FF0B55", fill: false },
-                { label: "Profit", data: profit, borderColor: "#CF0F47", fill: false },
-                { label: "Inventory", data: inventory, borderColor: "#FF7B9E", fill: false },
-            ],
-        },
-        options: {
-            responsive: true,
-            plugins: { legend: { position: "top" } },
-            scales: { y: { beginAtZero: true } },
-        },
-    });
+    try {
+        // This connects to the GET /api/v1/admin/reports route
+        const response = await fetch(`${API_BASE_URL}/admin/reports${query}`, { headers: getAuthHeader() });
+        if (!response.ok) throw new Error('Failed to fetch reports.');
+        
+        const reports = await response.json();
+        
+        container.innerHTML = reports.length === 0 
+            ? '<p>No reports found matching criteria.</p>'
+            : reports.map(report => createReportCard(report)).join('');
+        
+    } catch (error) {
+        console.error('Failed to load reports:', error);
+        container.innerHTML = '<p class="error">Error loading reports. Check console.</p>';
+    }
 }
 
-console.log("✅ Admin.js loaded with API_URL:", API_URL);
+
+/** Loads users requesting promotion. */
+async function loadPromotionRequests() {
+    const container = document.getElementById('requestsContainer');
+    container.innerHTML = '<p>Fetching requests...</p>';
+
+    // This connects to the GET /api/v1/admin/users/requests route
+    try {
+        const response = await fetch(`${API_BASE_URL}/admin/users/requests`, { headers: getAuthHeader() });
+        const data = await response.json();
+
+        if (data.count === 0) {
+            container.innerHTML = '<p class="success-note">No pending promotion requests at this time.</p>';
+            return;
+        }
+
+        container.innerHTML = data.data.map(user => createRequestCard(user)).join('');
+
+    } catch (error) {
+        console.error('Failed to load promotion requests:', error);
+        container.innerHTML = '<p class="error">Error loading promotion requests.</p>';
+    }
+}
+
+// --- SUPERADMIN FUNCTIONS (Stubs) ---
+
+async function loadAllUsers() {
+    // This connects to the GET /api/v1/admin/users route
+    if (currentUser.role === 'superadmin') {
+         // TODO: Implement the fetch logic and render user list
+    }
+}
+
+async function loadSystemNotifications() {
+     // This connects to the GET /api/v1/admin/notifications/all route
+    if (currentUser.role === 'superadmin') {
+         // TODO: Implement the fetch logic and render notifications history
+    }
+}
+
+// --- EVENT HANDLERS (Delegation) ---
+
+/** Handles clicks on action buttons (Approve/Reject) */
+async function handleActionClick(event) {
+    if (event.target.classList.contains('report-action-btn')) {
+        const id = event.target.dataset.id;
+        const action = event.target.dataset.action; // e.g., 'Approved' or 'Rejected'
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/admin/reports/${id}`, {
+                method: 'PUT',
+                headers: getAuthHeader(),
+                body: JSON.stringify({ status: action })
+            });
+            
+            if (!response.ok) throw new Error(`Failed to set status to ${action}`);
+            
+            alert(`Report ${id} successfully marked as ${action}!`);
+            loadReports(); // Reload the list
+            loadDashboardOverview(); // Update stats
+            
+        } catch (error) {
+            console.error('Report action error:', error);
+            alert(`Error processing request: ${error.message}`);
+        }
+    }
+
+    if (event.target.classList.contains('request-action-btn')) {
+        const id = event.target.dataset.id;
+        const action = event.target.dataset.action; // 'approve' or 'reject'
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/admin/users/${id}/${action}`, {
+                method: 'PATCH',
+                headers: getAuthHeader()
+            });
+
+            if (!response.ok) throw new Error(`Failed to ${action} user promotion.`);
+
+            alert(`User promotion successfully ${action}d!`);
+            loadPromotionRequests(); // Reload list
+        } catch (error) {
+            console.error('Promotion action error:', error);
+            alert(`Error processing request: ${error.message}`);
+        }
+    }
+}
+
+/** Handles the global notification submission (Superadmin only) */
+async function handleNotificationSubmit(event) {
+    event.preventDefault();
+    
+    if (currentUser.role !== 'superadmin') return alert('Not authorized.');
+
+    const message = document.getElementById('notificationMessage').value;
+    const target = document.getElementById('notificationTarget').value;
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/admin/notifications`, {
+            method: 'POST',
+            headers: getAuthHeader(),
+            body: JSON.stringify({ message, target })
+        });
+        
+        if (!response.ok) throw new Error('Failed to send notification.');
+        
+        alert('Global notification sent successfully!');
+        document.getElementById('globalNotificationForm').reset();
+
+    } catch (error) {
+        console.error('Notification error:', error);
+        alert(`Error sending notification: ${error.message}`);
+    }
+}
+
+
+// --- DOM Creation Helpers ---
+
+function createReportCard(report) {
+    const statusClass = report.status.toLowerCase();
+    return `
+        <div class="report-card ${statusClass}">
+            <div class="report-header">
+                <h3>${report.title}</h3>
+                <span class="status-tag ${statusClass}">${report.status}</span>
+            </div>
+            <p>Category: ${report.category}</p>
+            <p>Submitted by: ${report.user.name || 'N/A'}</p>
+            <p>Date: ${new Date(report.createdAt).toLocaleDateString()}</p>
+            <div class="report-actions">
+                <button class="report-action-btn" data-id="${report._id}" data-action="Approved">Approve</button>
+                <button class="report-action-btn" data-id="${report._id}" data-action="Rejected">Reject</button>
+                <button class="report-action-btn details-btn" data-id="${report._id}" data-action="ViewDetails">Review/Details</button>
+            </div>
+        </div>
+    `;
+}
+
+function createRequestCard(user) {
+    return `
+        <div class="request-card">
+            <h4>${user.name} (${user.email})</h4>
+            <p>Requested Department: ${user.department}</p>
+            <div class="request-actions">
+                <button class="request-action-btn approve" data-id="${user._id}" data-action="approve">✅ Approve Promotion</button>
+                <button class="request-action-btn reject" data-id="${user._id}" data-action="reject">❌ Reject Request</button>
+            </div>
+        </div>
+    `;
+}
+
+// --- INITIALIZATION ---
+
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Initial Profile/Role Check
+    loadUserProfile();
+
+    // 2. Navigation Listener
+    document.querySelector('.sidebar nav').addEventListener('click', (e) => {
+        if (e.target.tagName === 'A' && e.target.hash) {
+            e.preventDefault();
+            showSection(e.target.hash.substring(1));
+        }
+    });
+
+    // 3. Delegation for Report/Promotion Actions
+    document.querySelector('main.content').addEventListener('click', handleActionClick);
+
+    // 4. Filter Button Listener
+    document.getElementById('filterReportsBtn').addEventListener('click', loadReports);
+
+    // 5. Global Notification Listener
+    const notificationForm = document.getElementById('globalNotificationForm');
+    if (notificationForm) {
+        notificationForm.addEventListener('submit', handleNotificationSubmit);
+    }
+
+    // 6. Logout Listener
+    document.getElementById('logoutBtn').addEventListener('click', (e) => {
+        e.preventDefault();
+        localStorage.removeItem('token');
+        window.location.href = 'login.html';
+    });
+});
