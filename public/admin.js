@@ -7,13 +7,6 @@ const token = localStorage.getItem("token");
 let refreshInterval = null;
 
 // --- Global Variables for User State ---
-
-let currentUser = {
-    role: 'user', // Default to prevent unauthorized access
-    department: '',
-    id: ''
-};
-
 // --- Helper Functions ---
 
 /** Gets JWT from localStorage and formats the Authorization header. */
