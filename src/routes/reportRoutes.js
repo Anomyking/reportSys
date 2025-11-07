@@ -1,21 +1,18 @@
-// backend/routes/reportRoutes.js (Corrected)
-
 import express from "express";
 import { protect, authorize } from "../middleware/authMiddleware.js";
 import {
-  createReport,
-  getReports,
-  updateStatus,
-  getReportsByCategory,
-  updateAdminSummary,
+  createReport,
+  getReports,
+  updateStatus,
+  getReportsByCategory,
+  updateAdminSummary,
+  // NEW: Import the new controller functions
+  getReportById,
+  updateReport,
+  deleteReport,
 } from "../controllers/reportController.js";
 
-// 🛑 FIX 1: Remove the conflicting import that is not used by this route.
-// The cloudinaryConfig is typically for profile photos, which are handled in userRoutes.js.
-// import upload from "../config/cloudinaryConfig.js"; 
-
-// ✅ FIX 2: Rename the report upload middleware to 'reportUpload' for clarity and uniqueness.
-import reportUpload from "../config/multerConfig.js"; // Assuming this is your Report Attachment Middleware
+import reportUpload from "../config/multerConfig.js";
 
 const router = express.Router();
 
@@ -23,30 +20,52 @@ const router = express.Router();
  * 📨 Report Routes
  ************************************************************/
 
-// ✅ Create new report (User) - Includes file upload middleware
-// 🛑 FIX 3: Use the newly aliased variable name: 'reportUpload'.
+// POST /api/reports/
+// Create new report (User)
 router.post("/", protect, reportUpload.single('attachment'), createReport); 
 
-// ✅ Get reports
+// GET /api/reports/
+// Get all reports (filtered by user role in controller)
 router.get("/", protect, getReports);
 
-// ✅ Filter reports by category or status
+// GET /api/reports/filter
+// Filter reports by category or status
 router.get("/filter", protect, getReportsByCategory);
 
-// ✅ Admin/Superadmin update report status
+
+// --- NEW ROUTES TO FIX 404 ERROR ---
+
+// GET /api/reports/:id
+// Get a single report by ID (for edit modal)
+router.get("/:id", protect, getReportById);
+
+// PUT /api/reports/:id
+// Update a report (for user saving edits)
+router.put("/:id", protect, updateReport);
+
+// DELETE /api/reports/:id
+// Delete a report (for user deleting pending report)
+router.delete("/:id", protect, deleteReport);
+
+// --- END NEW ROUTES ---
+
+
+// PUT /api/reports/:id/status
+// Admin/Superadmin update report status
 router.put(
-  "/:id/status",
-  protect,
-  authorize("admin", "superadmin"),
-  updateStatus
+  "/:id/status",
+  protect,
+  authorize("admin", "superadmin"),
+  updateStatus
 );
 
-// ✅ Admin/Superadmin update report summary (financial, sales, etc.)
+// PUT /api/reports/:id/summary
+// Admin/Superadmin update report summary
 router.put(
-  "/:id/summary",
-  protect,
-  authorize("admin", "superadmin"),
-  updateAdminSummary
+  "/:id/summary",
+  protect,
+  authorize("admin", "superadmin"),
+  updateAdminSummary
 );
 
 export default router;

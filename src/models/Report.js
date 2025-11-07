@@ -1,5 +1,3 @@
-// backend/models/Report.js
-
 import mongoose from "mongoose";
 
 /************************************************************
@@ -63,6 +61,14 @@ const reportSchema = new mongoose.Schema({
         ],
         required: true 
     },
+    
+    // NEW: Added the urgency field to match the frontend
+    urgency: {
+        type: String,
+        enum: ["Normal", "Urgent"],
+        default: "Normal"
+    },
+
     user: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: "User", 
