@@ -51,15 +51,15 @@ async function handleResponseError(res) {
 }
 
 /****************************************
- * INIT
+ * INIT - UPDATED
  ****************************************/
 document.addEventListener("DOMContentLoaded", () => {
     loadOverview();
     loadAllUsers();
     loadReports();
-    loadNotifications();
+    loadNotifications(); // Loads personal notifications for the Superadmin user
+    loadSystemNotifications(); // ✅ NEW: Loads global system alerts
 });
-
 /****************************************
  * OVERVIEW
  ****************************************/
@@ -217,7 +217,7 @@ async function loadReports() {
 }
 
 /****************************************
- * NOTIFICATIONS - FIXED
+ * NOTIFICATIONS - CORRECTED
  ****************************************/
 async function loadNotifications() {
     const box = document.getElementById("notificationsList");
@@ -225,15 +225,15 @@ async function loadNotifications() {
     box.innerHTML = `<p>Loading...</p>`;
 
     try {
-        // ✅ FIX 1: Use the correct user-specific route /api/notifications/
-        const res = await fetch(`${API_URL}/api/notifications/`, {
+        // ✅ FIX: Remove the redundant '/api' from the path string.
+        // Assumes API_URL already includes the base '/api' path.
+        const res = await fetch(`${API_URL}/notifications/`, { 
             headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!res.ok) throw await handleResponseError(res);
         let notes = await res.json();
-        // Since your backend returns a direct array of notifications, this check might not be needed
-        // but it's safe to keep if the response is sometimes wrapped in { data: [] }
+        
         if (notes.data) notes = notes.data; 
 
         box.innerHTML = notes.length
@@ -250,6 +250,46 @@ async function loadNotifications() {
         showAlert(err.message);
     }
 }
+
+/****************************************
+ * SYSTEM NOTIFICATIONS (Superadmin View)
+ ****************************************/
+async function loadSystemNotifications() {
+    // You must add an element with this ID to your HTML dashboard (e.g., <div id="systemNotificationsList"></div>)
+    const box = document.getElementById("systemNotificationsList"); 
+    if (!box) {
+        console.warn("Element with ID 'systemNotificationsList' not found.");
+        return;
+    }
+    box.innerHTML = `<p>Loading system alerts...</p>`;
+
+    try {
+        // ✅ Targets the Superadmin-only route for system alerts
+        const res = await fetch(`${API_URL}/admin/notifications/all`, { 
+            headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) throw await handleResponseError(res);
+        const systemNotes = await res.json();
+        
+        // This is where you would process the Notification model records
+        box.innerHTML = systemNotes.length
+            ? systemNotes.map((n) => `
+          <div class="notification system-alert ${n.read ? "" : "unread"}">
+            <p>${n.message}</p>
+            <small>Sent: ${formatDate(n.createdAt)} 
+                ${n.target ? `(${n.target.toUpperCase()})` : ''} 
+            </small> 
+            </div>`
+            ).join("")
+            : "<p>No system-wide alerts found.</p>";
+
+    } catch (err) {
+        box.innerHTML = `<p style="color:red;">Error loading system alerts: ${err.message}</p>`;
+        showAlert(`System Notifications Error: ${err.message}`);
+    }
+}
+
 /****************************************
  * CHART
  ****************************************/

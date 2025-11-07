@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Dashboard</title>
     <link rel="stylesheet" href="dashboard.css">
+    
     <script src="config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
@@ -24,6 +25,8 @@
 
     <main class="content">
         
+        <button class="hamburger" id="hamburgerBtn">☰</button>
+
         <section id="reportManagement" style="display: none;">
             <h2>📊 Report Management</h2>
             
@@ -66,6 +69,17 @@
                     <option>Resources Report</option>
                 </select>
                 <input type="file" id="attachment" name="attachment">
+                
+                <div class="form-group urgency-group">
+                    <label>Urgency:</label>
+                    <div class="radio-options">
+                        <input type="radio" id="urgency-normal" name="urgency" value="Normal" checked>
+                        <label for="urgency-normal" class="normal">Normal</label>
+                        <input type="radio" id="urgency-urgent" name="urgency" value="Urgent">
+                        <label for="urgency-urgent" class="urgent">Urgent</label>
+                    </div>
+                </div>
+
                 <button type="submit">Submit</button>
             </form>
         </section>
@@ -139,6 +153,42 @@
         </section>
         
     </main>
+
+    <div id="editReportModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" id="closeModalBtn">&times;</span>
+            <h2>Edit Report</h2>
+            <form id="editReportForm">
+                <input type="hidden" id="editReportId" name="reportId">
+                
+                <label for="editTitle">Title:</label>
+                <input type="text" id="editTitle" name="title" placeholder="Title" required>
+                
+                <label for="editDescription">Description:</label>
+                <textarea id="editDescription" name="description" placeholder="Description" required></textarea>
+                
+                <label for="editCategory">Category:</label>
+                <select id="editCategory" name="category" required>
+                    <option value="">Select Category</option>
+                    <option>Finance Report</option>
+                    <option>Sales Report</option>
+                    <option>Resources Report</option>
+                </select>
+                
+                <div class="form-group urgency-group">
+                    <label>Urgency:</label>
+                    <div class="radio-options">
+                        <input type="radio" id="editUrgencyNormal" name="urgency" value="Normal">
+                        <label for="editUrgencyNormal" class="normal">Normal</label>
+                        <input type="radio" id="editUrgencyUrgent" name="urgency" value="Urgent">
+                        <label for="editUrgencyUrgent" class="urgent">Urgent</label>
+                    </div>
+                </div>
+                
+                <button type="submit">Save Changes</button>
+            </form>
+        </div>
+    </div>
 
     <script src="liveUpdates.js"></script>
     <script src="script.js"></script>

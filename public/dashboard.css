@@ -1103,6 +1103,151 @@ select:focus {
     z-index: 100;
 }
 
+/* ------------------------------------------------------------------- */
+/* ---------- NEW FEATURES (URGENCY, MODAL, EDIT/DELETE) ---------- */
+/* ------------------------------------------------------------------- */
+
+/* --- Urgency Radio Buttons --- */
+.form-group.urgency-group {
+    margin-bottom: 15px;
+    /* 🔹 Ensure this spans both columns in your form grid */
+    grid-column: 1 / -1; 
+}
+.urgency-group label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 5px;
+    color: #444; /* Match other labels */
+}
+.radio-options {
+    display: flex;
+    gap: 15px;
+}
+.radio-options input[type="radio"] {
+    display: none; /* Hide actual radio */
+}
+.radio-options label {
+    cursor: pointer;
+    padding: 8px 15px;
+    border-radius: 5px;
+    border: 2px solid #ccc;
+    font-weight: normal;
+    transition: all 0.2s ease;
+}
+/* Normal Style */
+.radio-options label.normal { 
+    border-color: var(--info); 
+    color: var(--info); 
+}
+.radio-options input[type="radio"]:checked + label.normal { 
+    background-color: var(--info); 
+    color: white; 
+}
+/* Urgent Style */
+.radio-options label.urgent { 
+    border-color: var(--danger); 
+    color: var(--danger); 
+}
+.radio-options input[type="radio"]:checked + label.urgent { 
+    background-color: var(--danger); 
+    color: white; 
+}
+
+
+/* --- Edit/Delete Buttons in Report Card --- */
+/* Your existing .report-actions rule is good */
+/* This just adds specific colors */
+.report-actions .btn-edit { 
+    background-color: var(--warning); 
+    color: #333; 
+}
+.report-actions .btn-delete { 
+    background-color: var(--danger); 
+    color: white; 
+}
+
+
+/* --- Edit Modal --- */
+.modal {
+    display: none; 
+    position: fixed; 
+    z-index: 1002; 
+    left: 0;
+    top: 0;
+    width: 100%; 
+    height: 100%; 
+    overflow: auto; 
+    background-color: rgba(0,0,0,0.5); /* Darker backdrop */
+    backdrop-filter: blur(5px);
+}
+.modal-content {
+    background-color: #fefefe;
+    margin: 10% auto; /* Position higher */
+    padding: 25px;
+    border: 1px solid #888;
+    width: 90%;
+    max-width: 500px;
+    border-radius: 12px;
+    position: relative;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+    animation: fadeIn 0.3s ease;
+}
+.modal-content h2 { 
+    margin-top: 0; 
+    color: var(--secondary);
+    border-bottom: 2px solid var(--light);
+    padding-bottom: 10px;
+}
+.modal-content form label {
+    margin-top: 10px;
+    margin-bottom: 5px;
+    display: block;
+    font-weight: bold;
+    color: #444;
+}
+.modal-content form input[type="text"],
+.modal-content form textarea,
+.modal-content form select {
+    width: 100%;
+    margin-bottom: 10px;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    background: #f9f9f9;
+    box-sizing: border-box; /* Important */
+    font-size: 1rem;
+}
+.modal-content form input[type="text"]:focus,
+.modal-content form textarea:focus,
+.modal-content form select:focus {
+    border-color: var(--primary);
+    outline: none;
+    box-shadow: 0 0 8px rgba(255, 11, 85, 0.5);
+    background: var(--white);
+}
+
+.modal-content form button {
+    margin-top: 15px;
+    width: 100%;
+}
+
+.close-btn {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    transition: color 0.2s;
+}
+.close-btn:hover,
+.close-btn:focus {
+    color: var(--danger);
+    text-decoration: none;
+    cursor: pointer;
+}
+
 @media (max-width: 768px) {
     body {
         flex-direction: column;

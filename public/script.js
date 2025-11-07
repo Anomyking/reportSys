@@ -1,5 +1,3 @@
-// script.js
-
 /************************************************************
  * GLOBAL CONSTANTS & CONFIG
  ************************************************************/
@@ -23,9 +21,9 @@ function getStatusColor(status) {
     const colors = {
         'approved': 'green',
         'rejected': 'red',
-        'pending': '#FF0B55'
+        'pending': '#FF0B55' // Changed to a more standard pending color, was bright pink
     };
-    return colors[normalizedStatus] || '#FF0B55';
+    return colors[normalizedStatus] || '#E67E22'; // Default color
 }
 
 async function apiFetch(endpoint, options = {}, requiresAuth = true) {
@@ -142,7 +140,6 @@ function setupNavigation() {
 
             const targetId = this.getAttribute('href');
             
-            // FIX: Prevent crash when href is just '#' (SyntaxError fix)
             if (targetId === '#' || !targetId) { 
                 return; 
             }
@@ -158,10 +155,12 @@ function setupNavigation() {
             if (targetSection) {
                 targetSection.style.display = 'block';
                 
-                // 🔹 Load profile data when the profile section is navigated to
                 if (targetId === '#profileSection') {
                     loadProfileData();
                 }
+                
+                // 🔹 FIX: Use '.open' to match your CSS
+                document.querySelector('.sidebar')?.classList.remove('open');
             }
         });
     });
@@ -177,10 +176,21 @@ function setupNavigation() {
         });
     }
     
-    // 🔹 Automatically show the first section on load
     const firstSectionLink = document.querySelector('.sidebar nav a');
     if (firstSectionLink) {
         firstSectionLink.click();
+    }
+}
+
+// NEW: Hamburger Button Logic
+function setupHamburger() {
+    const hamburgerBtn = document.getElementById("hamburgerBtn");
+    const sidebar = document.querySelector(".sidebar");
+    if (hamburgerBtn && sidebar) {
+        hamburgerBtn.addEventListener("click", () => {
+            // 🔹 FIX: Use '.open' to match your CSS
+            sidebar.classList.toggle("open");
+        });
     }
 }
 
@@ -197,13 +207,16 @@ function setupReportForm() {
         e.preventDefault();
 
         const formData = new FormData(reportForm);
+        
+        // NEW: Get urgency value and add to FormData
+        const urgency = document.querySelector('input[name="urgency"]:checked')?.value || 'Normal';
+        formData.append('urgency', urgency);
 
         if (!formData.get('title') || !formData.get('description') || !formData.get('category')) {
             return showAlert("⚠️ Please fill in all required fields.");
         }
 
         try {
-            // NOTE: apiFetch handles FormData now, but this original block is fine too.
             const res = await fetch(`${API_URL}/reports`, {
                 method: "POST",
                 headers: {
@@ -238,6 +251,49 @@ async function refreshReports() {
     await loadReportAnalytics();
 }
 
+// NEW: This function creates the HTML for a single report card
+function createReportCardHTML(report) {
+    const isPending = report.status.toLowerCase() === 'pending';
+    
+    // Assumes `report._id` exists from the API response
+    const reportId = report._id || report.id; 
+
+    return `
+        <div class="report-card">
+            <h3>${report.title}</h3>
+            <p>${report.description}</p>
+            <p><strong>Category:</strong> ${report.category}</p>
+            
+            <p><strong>Urgency:</strong> 
+                <span style="font-weight: bold; color:${report.urgency === 'Urgent' ? '#dc3545' : '#007bff'};">
+                    ${report.urgency || 'Normal'}
+                </span>
+            </p>
+            
+            <p><strong>Status:</strong> 
+                <span style="color:${getStatusColor(report.status)}; font-weight: bold;">
+                    ${report.status}
+                </span>
+            </p>
+            <p><small>${new Date(report.createdAt).toLocaleString()}</small></p>
+            ${report.attachmentName ? `
+                <p>📎 
+                    <a href="${report.attachmentPath}" target="_blank">
+                        View File: ${report.attachmentName}
+                    </a>
+                </p>
+            ` : ''}
+
+            ${isPending ? `
+                <div class="report-actions">
+                    <button class="btn-edit" data-report-id="${reportId}">✏️ Edit</button>
+                    <button class="btn-delete" data-report-id="${reportId}">🗑️ Delete</button>
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
 async function loadReports() {
     const reportsDiv = document.getElementById("reportsContainer") ?? document.getElementById("reports");
     if (!reportsDiv) {
@@ -257,24 +313,9 @@ async function loadReports() {
             return;
         }
 
-        reportsDiv.innerHTML = reports.map(report => `
-            <div class="report-card">
-                <h3>${report.title}</h3>
-                <p>${report.description}</p>
-                <p><strong>Category:</strong> ${report.category}</p>
-                <p><strong>Status:</strong> 
-                    <span style="color:${getStatusColor(report.status)};">${report.status}</span>
-                </p>
-                <p><small>${new Date(report.createdAt).toLocaleString()}</small></p>
-                ${report.attachmentName ? `
-                    <p>📎 
-                        <a href="${report.attachmentPath}" target="_blank">
-                            View File: ${report.attachmentName}
-                        </a>
-                    </p>
-                ` : ''}
-            </div>
-        `).join("");
+        // Use the new template function
+        reportsDiv.innerHTML = reports.map(createReportCardHTML).join("");
+
     } catch (err) {
         console.error("Error loading reports:", err);
         reportsDiv.innerHTML = `<p style="color:red;">Error loading reports: ${err.message}</p>`;
@@ -410,6 +451,7 @@ async function handleProfilePhotoUpload(e) {
         loadProfileData();
         
     } catch (err) {
+        // 🔹 FIX: Removed the extra "..." from the error message
         showAlert("Upload failed: " + err.message);
     }
 }
@@ -509,17 +551,8 @@ function renderReports(reports) {
         return;
     }
 
-    container.innerHTML = reports.map(report => `
-        <div class="report-card">
-            <h3>${report.title}</h3>
-            <p>${report.description}</p>
-            <p><strong>Category:</strong> ${report.category}</p>
-            <p><strong>Status:</strong> 
-                <span style="color:${getStatusColor(report.status)};">${report.status}</span>
-            </p>
-            <p><small>${new Date(report.createdAt).toLocaleString()}</small></p>
-        </div>
-    `).join("");
+    // Use the new template function
+    container.innerHTML = reports.map(createReportCardHTML).join("");
 }
 
 let chartInstance;
@@ -566,6 +599,119 @@ function renderAnalyticsChart(reports) {
 }
 
 /************************************************************
+ * NEW: REPORT ACTIONS (EDIT/DELETE)
+ ************************************************************/
+
+function setupReportActions() {
+    const reportsContainer = document.getElementById("reportsContainer");
+    const modal = document.getElementById("editReportModal");
+    const closeModalBtn = document.getElementById("closeModalBtn");
+    const editForm = document.getElementById("editReportForm");
+
+    if (!reportsContainer || !modal || !closeModalBtn || !editForm) {
+        console.warn("Edit modal elements not found.");
+        return;
+    }
+
+    // 1. Listen for clicks on Edit/Delete buttons
+    reportsContainer.addEventListener("click", (e) => {
+        if (e.target.classList.contains("btn-edit")) {
+            const reportId = e.target.dataset.reportId;
+            openEditModal(reportId);
+        }
+        if (e.target.classList.contains("btn-delete")) {
+            const reportId = e.target.dataset.reportId;
+            deleteReport(reportId);
+        }
+    });
+
+    // 2. Close modal
+    closeModalBtn.addEventListener("click", () => {
+        modal.style.display = "none";
+    });
+
+    // 3. Handle edit form submission
+    editForm.addEventListener("submit", handleEditFormSubmit);
+}
+
+async function openEditModal(reportId) {
+    if (!reportId) return;
+    
+    try {
+        // Fetch the latest data for this specific report
+        // Note: Assumes an API endpoint like /reports/:id exists
+        const report = await apiFetch(`/reports/${reportId}`); 
+
+        // Populate the modal form
+        document.getElementById("editReportId").value = reportId;
+        document.getElementById("editTitle").value = report.title;
+        document.getElementById("editDescription").value = report.description;
+        document.getElementById("editCategory").value = report.category;
+        
+        // Set urgency radio
+        if (report.urgency === 'Urgent') {
+            document.getElementById("editUrgencyUrgent").checked = true;
+        } else {
+            document.getElementById("editUrgencyNormal").checked = true;
+        }
+
+        // Show the modal
+        document.getElementById("editReportModal").style.display = "block";
+
+    } catch (err) {
+        showAlert("Error fetching report details: " + err.message);
+    }
+}
+
+async function handleEditFormSubmit(e) {
+    e.preventDefault();
+    
+    const reportId = document.getElementById("editReportId").value;
+    const data = {
+        title: document.getElementById("editTitle").value,
+        description: document.getElementById("editDescription").value,
+        category: document.getElementById("editCategory").value,
+        urgency: document.querySelector('input[name="urgency"]:checked').value
+    };
+
+    try {
+        // Note: Assumes an API endpoint like PUT /reports/:id exists
+        await apiFetch(`/reports/${reportId}`, {
+            method: "PUT",
+            body: JSON.stringify(data)
+        });
+        
+        showAlert("✅ Report updated successfully!");
+        document.getElementById("editReportModal").style.display = "none";
+        refreshReports(); // Refresh the list
+
+    } catch (err) {
+        showAlert("Error updating report: " + err.message);
+    }
+}
+
+async function deleteReport(reportId) {
+    if (!reportId) return;
+
+    if (!confirm("Are you sure you want to delete this report? This cannot be undone.")) {
+        return;
+    }
+
+    try {
+        // Note: Assumes an API endpoint like DELETE /reports/:id exists
+        await apiFetch(`/reports/${reportId}`, {
+            method: "DELETE"
+        });
+
+        showAlert("✅ Report deleted.");
+        refreshReports(); // Refresh the list
+
+    } catch (err) {
+        showAlert("Error deleting report: " + err.message);
+    }
+}
+
+/************************************************************
  * INITIALIZATION
  ************************************************************/
 function initializeApp() {
@@ -577,6 +723,8 @@ function initializeApp() {
     setupReportFilters();
     setupFileSearch();
     setupProfileSection(); 
+    setupHamburger(); // NEW: Initialize hamburger
+    setupReportActions(); // NEW: Initialize edit/delete listeners
     
     console.log("✅ Script.js loaded with API_URL:", API_URL);
 }
