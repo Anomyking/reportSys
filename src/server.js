@@ -28,14 +28,13 @@ dotenv.config();
 const app = express();
 const server = http.createServer(app);
 
-// Create uploads directory if it doesn't exist
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const uploadsDir = path.join(__dirname, '..', 'uploads');
+// Uploads directory configuration
+const uploadsDir = path.join(process.cwd(), 'uploads');
 
+// Ensure uploads directory exists
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
-  console.log('Created uploads directory');
+  console.log('📁 Created uploads directory at:', uploadsDir);
 }
 
 // Middleware to parse JSON and urlencoded data
@@ -109,16 +108,10 @@ startDB();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const publicPath = path.join(__dirname, "..", "public");
-const uploadsPath = path.join(__dirname, "..", "uploads");
 
-// 2. CREATE UPLOADS DIRECTORY (Fix for silent 500 error)
-if (!fs.existsSync(uploadsPath)) {
-  fs.mkdirSync(uploadsPath, { recursive: true });
-  console.log(`📁 Created upload directory: ${uploadsPath}`);
-}
-
+// Serve static files
 app.use(express.static(publicPath));
-app.use("/uploads", express.static(uploadsPath));
+app.use("/uploads", express.static(uploadsDir));
 
 /************************************************************
  * SECURITY HEADERS
@@ -147,15 +140,6 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/files", fileRoutes);
-
-// Ensure uploads directory exists
-const uploadsDir = path.join(process.cwd(), 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-// Serve uploaded files
-app.use('/uploads', express.static(uploadsDir));
 
 /************************************************************
  * HEALTH CHECK
