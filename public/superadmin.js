@@ -191,7 +191,6 @@ async function loadReports() {
             // Sorting in descending order (newest date is greater, so it comes first: dateB - dateA)
             return dateB - dateA;
         });
-        // ----------------------------------------------------
 
         container.innerHTML = reports.length
             ? reports.map((r) => `
@@ -213,6 +212,30 @@ async function loadReports() {
     } catch (err) {
         container.innerHTML = `<p style="color:red;">Error: ${err.message}</p>`;
         showAlert(err.message);
+    }
+}
+
+async function updateReportStatus(reportId, status) {
+    if (!confirm(`Are you sure you want to ${status.toLowerCase()} this report?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/reports/${reportId}/status`, {
+            method: 'PATCH',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ status })
+        });
+
+        await handleResponseError(response);
+        showAlert(`Report ${status.toLowerCase()}ed successfully!`);
+        loadReports(); // Refresh the reports list
+    } catch (err) {
+        console.error('Error updating report status:', err);
+        showAlert(`Failed to update report: ${err.message}`);
     }
 }
 
