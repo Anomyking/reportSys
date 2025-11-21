@@ -29,7 +29,6 @@ export const protect = (req, res, next) => {
     }
 };
 
-
 /************************************************************
  * 🔐 AUTHORIZE — Role Based Access Control (RBAC)
  * Allows route only if user role is permitted
@@ -50,4 +49,38 @@ export const authorize = (...allowedRoles) => {
 
         next();
     };
+};
+
+/**
+ * Middleware to check if user is an admin
+ */
+export const admin = (req, res, next) => {
+    if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+    }
+    if (req.user.role !== 'admin' && req.user.role !== 'superadmin') {
+        return res.status(403).json({ message: "Access denied: Admin role required" });
+    }
+    next();
+};
+
+/**
+ * Middleware to check if user is a superadmin
+ */
+export const superadmin = (req, res, next) => {
+    if (!req.user) {
+        return res.status(401).json({ message: "Not authenticated" });
+    }
+    if (req.user.role !== 'superadmin') {
+        return res.status(403).json({ message: "Access denied: Superadmin role required" });
+    }
+    next();
+};
+
+// Export all middleware
+export default {
+    protect,
+    authorize,
+    admin,
+    superadmin
 };
