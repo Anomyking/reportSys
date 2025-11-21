@@ -221,9 +221,9 @@ async function updateReportStatus(reportId, status) {
     }
 
     try {
-        // Using the admin endpoint for report status updates
-        const response = await fetch(`${API_URL}/admin/reports/${reportId}/status`, {
-            method: 'PATCH',
+        // Using the correct admin endpoint for report status updates
+        const response = await fetch(`${API_URL}/admin/reports/${reportId}`, {
+            method: 'PUT',
             headers: { 
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
@@ -236,6 +236,7 @@ async function updateReportStatus(reportId, status) {
             throw new Error(error.message || 'Failed to update report status');
         }
 
+        const data = await response.json();
         showAlert(`Report ${status.toLowerCase()}ed successfully!`);
         loadReports(); // Refresh the reports list
     } catch (err) {
