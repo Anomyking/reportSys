@@ -307,8 +307,8 @@ async function loadSystemNotifications() {
     box.innerHTML = `<p>Loading system alerts...</p>`;
 
     try {
-        // First try the admin-specific endpoint
-        let res = await fetch(`${API_URL}/admin/notifications`, { 
+        // Use the correct endpoint for system notifications
+        const res = await fetch(`${API_URL}/admin/notifications/all`, { 
             headers: { 
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
@@ -316,33 +316,19 @@ async function loadSystemNotifications() {
             credentials: 'include'
         });
 
-        // If admin endpoint fails, fall back to regular notifications
-        if (!res.ok) {
-            res = await fetch(`${API_URL}/notifications`, { 
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                credentials: 'include'
-            });
-        }
-
         if (!res.ok) {
             const error = await res.json().catch(() => ({}));
             throw new Error(error.message || 'Failed to load system notifications');
         }
 
         const data = await res.json();
-        const systemNotes = Array.isArray(data) ? data : (data.data || []);
+        const notifications = Array.isArray(data) ? data : [];
         
-        // Filter for system notifications if needed, or show all if not distinguishable
-        const systemAlerts = systemNotes.filter(n => n.isSystem || n.target === 'all');
-
-        box.innerHTML = systemAlerts.length > 0
-            ? systemAlerts.map(n => `
-                <div class="notification system-alert ${n.read ? '' : 'unread'}">
+        box.innerHTML = notifications.length > 0
+            ? notifications.map(n => `
+                <div class="notification system-alert">
                     <p>${n.message || 'System notification'}</p>
-                    <small>${formatDate(n.createdAt || new Date())}</small>
+                    <small>${formatDate(n.date || n.createdAt || new Date())}</small>
                 </div>`
             ).join('')
             : '<p>No system alerts found.</p>';
