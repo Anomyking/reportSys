@@ -221,7 +221,6 @@ async function updateReportStatus(reportId, status) {
     }
 
     try {
-        // Using the correct admin endpoint for report status updates
         const response = await fetch(`${API_URL}/admin/reports/${reportId}`, {
             method: 'PUT',
             headers: { 
@@ -231,17 +230,28 @@ async function updateReportStatus(reportId, status) {
             body: JSON.stringify({ status })
         });
 
+        const responseData = await response.json().catch(() => ({}));
+        
         if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            throw new Error(error.message || 'Failed to update report status');
+            console.error('Error details:', {
+                status: response.status,
+                statusText: response.statusText,
+                response: responseData,
+                url: response.url
+            });
+            throw new Error(responseData.message || `HTTP error! status: ${response.status}`);
         }
 
-        const data = await response.json();
         showAlert(`Report ${status.toLowerCase()}ed successfully!`);
         loadReports(); // Refresh the reports list
     } catch (err) {
-        console.error('Error updating report status:', err);
-        showAlert(`Failed to update report: ${err.message}`);
+        console.error('Error updating report status:', {
+            error: err,
+            reportId,
+            status,
+            timestamp: new Date().toISOString()
+        });
+        showAlert(`Failed to update report: ${err.message || 'Unknown error occurred'}`);
     }
 }
 
