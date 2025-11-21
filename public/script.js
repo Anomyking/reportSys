@@ -208,8 +208,12 @@ function setupReportForm() {
 
         const formData = new FormData(reportForm);
         
-        // NEW: Get urgency value and add to FormData
-        const urgency = document.querySelector('input[name="urgency"]:checked')?.value || 'Normal';
+        // Get the selected urgency value
+        const urgencyInput = document.querySelector('input[name="urgency"]:checked');
+        const urgency = urgencyInput ? urgencyInput.value : 'Normal';
+        
+        // Remove any existing urgency entries and add the single selected value
+        formData.delete('urgency');
         formData.append('urgency', urgency);
 
         if (!formData.get('title') || !formData.get('description') || !formData.get('category')) {
@@ -226,14 +230,15 @@ function setupReportForm() {
             });
 
             const data = await res.json();
-            if (!res.ok) throw new Error(data.message);
+            if (!res.ok) throw new Error(data.message || 'Failed to submit report');
 
             showAlert("✅ Report submitted successfully!");
             reportForm.reset();
             await refreshReports();
             loadFilesHistory();
         } catch (err) {
-            showAlert("Error submitting report: " + err.message);
+            console.error('Error submitting report:', err);
+            showAlert("Error submitting report: " + (err.message || 'Unknown error occurred'));
         }
     });
 
