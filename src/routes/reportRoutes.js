@@ -6,10 +6,10 @@ import {
   updateStatus,
   getReportsByCategory,
   updateAdminSummary,
-  // NEW: Import the new controller functions
   getReportById,
   updateReport,
   deleteReport,
+  downloadReportAttachment,
 } from "../controllers/reportController.js";
 
 import reportUpload from "../config/multerConfig.js";
@@ -67,5 +67,9 @@ router.put(
   authorize("admin", "superadmin"),
   updateAdminSummary
 );
+
+// GET /api/reports/attachment/:id
+// Download report attachment with authentication
+router.get("/attachment/:id", protect, downloadReportAttachment);
 
 export default router;

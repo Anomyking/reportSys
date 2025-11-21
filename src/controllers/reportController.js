@@ -156,27 +156,81 @@ export const updateReport = async (req, res) => {
 export const deleteReport = async (req, res) => {
   try {
     const report = await Report.findById(req.params.id);
-
     if (!report) {
-      return res.status(404).json({ message: "Report not found" });
+      return res.status(404).json({ message: 'Report not found' });
     }
 
-    // Security check: Only the user who created it can delete
+    // Check if the user is the owner of the report
     if (report.user.toString() !== req.user.id) {
-      return res.status(403).json({ message: "Not authorized to delete this report" });
+      return res.status(403).json({ message: 'Not authorized to delete this report' });
     }
 
-    // Logic check: Only allow deletion if the report is still "Pending"
-    if (report.status.toLowerCase() !== "pending") {
-      return res.status(400).json({ message: "Cannot delete a report that has already been reviewed" });
+    // If there's an attachment, delete it from storage
+    if (report.attachmentPath) {
+      // Delete the file from the filesystem or cloud storage
+      const filePath = path.join(__dirname, '..', report.attachmentPath);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
     }
 
-    await Report.deleteOne({ _id: req.params.id });
-    res.json({ message: "Report deleted successfully" });
+    await Report.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Report deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting report:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+/**
+ * Download a report attachment
+ * @route GET /api/reports/attachment/:id
+ * @access Private
+ */
+export const downloadReportAttachment = async (req, res) => {
+  try {
+    const report = await Report.findById(req.params.id);
+    
+    if (!report) {
+      return res.status(404).json({ message: 'Report not found' });
+    }
+
+    // Check if the user is authorized to view this report
+    if (req.user.role !== 'admin' && 
+        req.user.role !== 'superadmin' && 
+        report.user.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Not authorized to access this file' });
+    }
+
+    // Check if the report has an attachment
+    if (!report.attachmentPath) {
+      return res.status(404).json({ message: 'No attachment found for this report' });
+    }
+
+    // If the attachment is stored in Cloudinary (URL starts with http)
+    if (report.attachmentPath.startsWith('http')) {
+      return res.redirect(report.attachmentPath);
+    }
+
+    // For local file storage
+    const filePath = path.join(__dirname, '..', report.attachmentPath);
+    
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: 'File not found' });
+    }
+
+    // Set appropriate headers for file download
+    res.setHeader('Content-Disposition', `attachment; filename="${report.attachmentName || 'report_attachment'}"`);
+    res.setHeader('Content-Type', report.attachmentMimeType || 'application/octet-stream');
+    
+    // Stream the file to the response
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
 
   } catch (err) {
-    console.error("❌ DELETE REPORT FAILED:", err);
-    res.status(500).json({ message: err.message });
+    console.error('Error downloading file:', err);
+    res.status(500).json({ message: 'Error downloading file' });
   }
 };
 
