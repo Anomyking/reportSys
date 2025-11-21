@@ -97,17 +97,29 @@
 
   <!-- Section Switcher -->
   <script>
-    const navLinks = document.querySelectorAll(".sidebar nav a");
-    const sections = document.querySelectorAll(".content section");
+    document.addEventListener('DOMContentLoaded', function() {
+      const navLinks = document.querySelectorAll(".sidebar nav a");
+      const sections = document.querySelectorAll(".content > section");
 
-    navLinks.forEach(link => {
-      link.addEventListener("click", () => {
-        navLinks.forEach(l => l.classList.remove("active"));
-        sections.forEach(s => s.classList.remove("active"));
+      navLinks.forEach(link => {
+        link.addEventListener("click", (e) => {
+          e.preventDefault();
+          const targetSectionId = link.getAttribute('data-section');
+          const targetSection = document.getElementById(targetSectionId);
+          
+          if (!targetSection) {
+            console.warn(`Section with ID "${targetSectionId}" not found`);
+            return;
+          }
 
-        link.classList.add("active");
-        document.getElementById(link.dataset.section).classList.add("active");
-        document.querySelector(".content").scrollTop = 0;
+          // Update active states
+          navLinks.forEach(l => l.classList.remove("active"));
+          sections.forEach(s => s.classList.remove("active"));
+          
+          link.classList.add("active");
+          targetSection.classList.add("active");
+          document.querySelector(".content").scrollTop = 0;
+        });
       });
     });
   </script>
