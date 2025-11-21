@@ -7,7 +7,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 import http from "http";
 import { Server } from "socket.io";
-import fs from "fs"; // 1. IMPORT FS
+import fs from "fs";
+import multer from "multer";
 
 // Local imports
 import connectDB from "./config/db.js";
@@ -26,6 +27,20 @@ dotenv.config();
  ************************************************************/
 const app = express();
 const server = http.createServer(app);
+
+// Create uploads directory if it doesn't exist
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsDir = path.join(__dirname, '..', 'uploads');
+
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log('Created uploads directory');
+}
+
+// Middleware to parse JSON and urlencoded data
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 /************************************************************
  * CORS CONFIGURATION

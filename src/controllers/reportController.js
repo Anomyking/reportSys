@@ -8,20 +8,36 @@ import { io } from "../server.js";
  ************************************************************/
 export const createReport = async (req, res) => {
   try {
-    // UPDATED: Added 'urgency' from the request body
+    console.log('Request body:', req.body);
+    console.log('Files:', req.file);
+    
+    // For form-data, we need to access fields directly from req.body
     const { title, description, category, urgency } = req.body;
-    if (!title || !description || !category)
-      return res.status(400).json({ message: "All fields are required." });
+    
+    if (!title || !description || !category) {
+      console.error('Missing required fields:', { title, description, category });
+      return res.status(400).json({ 
+        message: "All fields are required.",
+        receivedData: { title, description, category, urgency }
+      });
+    }
 
     const reportData = {
-      title,
-      description,
-      category,
+      title: title.toString().trim(),
+      description: description.toString().trim(),
+      category: category.toString().trim(),
       user: req.user.id,
       status: "Pending",
-      // UPDATED: Save the urgency field
-      urgency: urgency || "Normal", 
+      urgency: (urgency || "Normal").toString().trim()
     };
+    
+    // Handle file upload if present
+    if (req.file) {
+      reportData.attachmentPath = `/uploads/${req.file.filename}`;
+      reportData.attachmentName = req.file.originalname;
+      reportData.attachmentMimeType = req.file.mimetype;
+      console.log('File attached:', reportData.attachmentName);
+    }
 
     const report = await Report.create(reportData);
 

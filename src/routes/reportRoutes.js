@@ -1,5 +1,8 @@
 import express from "express";
 import { protect, authorize } from "../middleware/authMiddleware.js";
+import multer from "multer";
+import path from 'path';
+import fs from 'fs';
 import {
   createReport,
   getReports,
@@ -13,13 +16,60 @@ import {
 
 const router = express.Router();
 
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(process.cwd(), 'uploads');
+    // Ensure upload directory exists
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req, file, cb) => {
+    const filetypes = /jpeg|jpg|png|gif|pdf|doc|docx|xls|xlsx|txt/;
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = filetypes.test(file.mimetype);
+    
+    if (extname && mimetype) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only document and image files are allowed'));
+    }
+  }
+});
+
 /************************************************************
  * 📨 Report Routes
  ************************************************************/
 
 // POST /api/reports/
-// Create new report (User)
-router.post("/", protect, createReport); 
+// Create new report (User) with optional file upload
+router.post("/", 
+  protect, 
+  upload.single('attachment'), 
+  (err, req, res, next) => {
+    if (err instanceof multer.MulterError) {
+      // A Multer error occurred when uploading
+      return res.status(400).json({ message: err.message });
+    } else if (err) {
+      // An unknown error occurred
+      return res.status(400).json({ message: err.message });
+    }
+    // Everything went fine
+    next();
+  },
+  createReport
+);
 
 // GET /api/reports/
 // Get all reports (filtered by user role in controller)
