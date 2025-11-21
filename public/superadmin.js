@@ -384,13 +384,18 @@ async function loadNotifications() {
 
         // Render notifications
         box.innerHTML = notifications.length > 0
-            ? notifications.map((n, index) => `
-                <div class="notification ${n.read ? '' : 'unread'}" data-id="${n._id || index}">
+            ? notifications.map((n, index) => {
+                // Use the notification's _id if available, otherwise create a temporary ID
+                const notificationId = n._id || `temp-${Date.now()}-${index}`;
+                const isRead = n.read || false;
+                
+                return `
+                <div class="notification ${isRead ? '' : 'unread'}" data-id="${notificationId}">
                     <p>${n.message || 'No message content'}</p>
                     <small>${formatDate(n.createdAt || new Date())}</small>
-                    ${!n.read ? `<button class="mark-read" onclick="markAsRead('${n._id || index}')">Mark as read</button>` : ''}
-                </div>`
-            ).join('')
+                    ${!isRead ? `<button class="mark-read" onclick="markAsRead('${notificationId}')">Mark as read</button>` : ''}
+                </div>`;
+            }).join('')
             : '<p>No notifications found.</p>';
 
     } catch (err) {
@@ -402,6 +407,19 @@ async function loadNotifications() {
 // Mark notification as read
 window.markAsRead = async (notificationId) => {
     try {
+        // Skip if it's a temporary ID (starts with 'temp-')
+        if (notificationId.startsWith('temp-')) {
+            // Just update the UI for temporary IDs
+            const notification = document.querySelector(`.notification[data-id="${notificationId}"]`);
+            if (notification) {
+                notification.classList.remove('unread');
+                const button = notification.querySelector('.mark-read');
+                if (button) button.remove();
+                updateNotificationBadge();
+            }
+            return;
+        }
+
         const res = await fetch(`${API_URL}/notifications/${notificationId}/read`, {
             method: 'PUT',
             headers: {
@@ -412,7 +430,8 @@ window.markAsRead = async (notificationId) => {
         });
 
         if (!res.ok) {
-            throw new Error('Failed to mark notification as read');
+            const error = await res.json().catch(() => ({}));
+            throw new Error(error.message || 'Failed to mark notification as read');
         }
 
         // Update UI
@@ -421,21 +440,25 @@ window.markAsRead = async (notificationId) => {
             notification.classList.remove('unread');
             const button = notification.querySelector('.mark-read');
             if (button) button.remove();
-            
-            // Update badge
-            const badge = document.querySelector('.notification-badge');
-            if (badge) {
-                const count = parseInt(badge.textContent) || 0;
-                if (count > 1) {
-                    badge.textContent = count - 1;
-                } else {
-                    badge.style.display = 'none';
-                }
-            }
+            updateNotificationBadge();
         }
     } catch (err) {
         console.error('Error marking notification as read:', err);
-        showToast('Failed to mark notification as read', 'error');
+        showToast(err.message || 'Failed to mark notification as read', 'error');
+    }
+};
+
+// Helper function to update notification badge
+function updateNotificationBadge() {
+    const badge = document.querySelector('.notification-badge');
+    if (!badge) return;
+    
+    const unreadCount = document.querySelectorAll('.notification.unread').length;
+    if (unreadCount > 0) {
+        badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
+        badge.style.display = 'flex';
+    } else {
+        badge.style.display = 'none';
     }
 };
 
