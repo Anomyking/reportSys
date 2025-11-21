@@ -256,13 +256,66 @@ async function updateReportStatus(reportId, status) {
 }
 
 /****************************************
- * NOTIFICATIONS - CORRECTED
+ * NOTIFICATIONS - ENHANCED
  ****************************************/
+let socket;
+
+// Initialize WebSocket connection
+function initWebSocket() {
+    if (socket) return;
+    
+    socket = io(API_URL, {
+        auth: { token },
+        transports: ['websocket']
+    });
+
+    socket.on('connect', () => {
+        console.log('Connected to WebSocket server');
+    });
+
+    socket.on('reportUpdated', (data) => {
+        console.log('Report updated:', data);
+        // Refresh notifications and reports when a report is updated
+        loadNotifications();
+        loadReports();
+        
+        // Show a toast notification for new reports
+        if (data.type === 'new_report') {
+            showToast(`New ${data.category} report: ${data.message}`, 'info');
+        }
+    });
+
+    socket.on('connect_error', (err) => {
+        console.error('WebSocket connection error:', err);
+        // Fallback to polling if WebSocket fails
+        if (socket.io.opts.transports[0] === 'websocket') {
+            socket.io.opts.transports = ['polling', 'websocket'];
+        }
+    });
+}
+
+// Show toast notification
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.classList.add('show');
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 5000);
+    }, 100);
+}
+
+// Load and display notifications
 async function loadNotifications() {
     const box = document.getElementById("notificationsList");
+    const badge = document.querySelector('.notification-badge');
     if (!box) return;
-    box.innerHTML = `<p>Loading notifications...</p>`;
-
+    
     try {
         const res = await fetch(`${API_URL}/notifications`, { 
             headers: { 
@@ -279,12 +332,21 @@ async function loadNotifications() {
 
         const data = await res.json();
         const notifications = Array.isArray(data) ? data : (data.data || []);
+        const unreadCount = notifications.filter(n => !n.read).length;
 
+        // Update notification badge
+        if (badge) {
+            badge.textContent = unreadCount > 0 ? unreadCount : '';
+            badge.style.display = unreadCount > 0 ? 'flex' : 'none';
+        }
+
+        // Render notifications
         box.innerHTML = notifications.length > 0
-            ? notifications.map(n => `
-                <div class="notification ${n.read ? '' : 'unread'}">
+            ? notifications.map((n, index) => `
+                <div class="notification ${n.read ? '' : 'unread'}" data-id="${n._id || index}">
                     <p>${n.message || 'No message content'}</p>
                     <small>${formatDate(n.createdAt || new Date())}</small>
+                    ${!n.read ? `<button class="mark-read" onclick="markAsRead('${n._id || index}')">Mark as read</button>` : ''}
                 </div>`
             ).join('')
             : '<p>No notifications found.</p>';
@@ -294,6 +356,46 @@ async function loadNotifications() {
         box.innerHTML = `<p class="error">Error: ${err.message || 'Failed to load notifications'}</p>`;
     }
 }
+
+// Mark notification as read
+window.markAsRead = async (notificationId) => {
+    try {
+        const res = await fetch(`${API_URL}/notifications/${notificationId}/read`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            credentials: 'include'
+        });
+
+        if (!res.ok) {
+            throw new Error('Failed to mark notification as read');
+        }
+
+        // Update UI
+        const notification = document.querySelector(`.notification[data-id="${notificationId}"]`);
+        if (notification) {
+            notification.classList.remove('unread');
+            const button = notification.querySelector('.mark-read');
+            if (button) button.remove();
+            
+            // Update badge
+            const badge = document.querySelector('.notification-badge');
+            if (badge) {
+                const count = parseInt(badge.textContent) || 0;
+                if (count > 1) {
+                    badge.textContent = count - 1;
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+        }
+    } catch (err) {
+        console.error('Error marking notification as read:', err);
+        showToast('Failed to mark notification as read', 'error');
+    }
+};
 
 /****************************************
  * SYSTEM NOTIFICATIONS (Superadmin View)
