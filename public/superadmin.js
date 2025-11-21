@@ -261,32 +261,37 @@ async function updateReportStatus(reportId, status) {
 async function loadNotifications() {
     const box = document.getElementById("notificationsList");
     if (!box) return;
-    box.innerHTML = `<p>Loading...</p>`;
+    box.innerHTML = `<p>Loading notifications...</p>`;
 
     try {
-        // ✅ FIX: Remove the redundant '/api' from the path string.
-        // Assumes API_URL already includes the base '/api' path.
-        const res = await fetch(`${API_URL}/notifications/`, { 
-            headers: { Authorization: `Bearer ${token}` },
+        const res = await fetch(`${API_URL}/notifications`, { 
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            credentials: 'include'
         });
 
-        if (!res.ok) throw await handleResponseError(res);
-        let notes = await res.json();
-        
-        if (notes.data) notes = notes.data; 
+        if (!res.ok) {
+            const error = await res.json().catch(() => ({}));
+            throw new Error(error.message || 'Failed to load notifications');
+        }
 
-        box.innerHTML = notes.length
-            ? notes.map((n) => `
-          <div class="notification ${n.read ? "" : "unread"}">
-            <p>${n.message}</p>
-            <small>${formatDate(n.createdAt)}</small> 
-          </div>`
-            ).join("")
-            : "<p>No notifications.</p>";
+        const data = await res.json();
+        const notifications = Array.isArray(data) ? data : (data.data || []);
+
+        box.innerHTML = notifications.length > 0
+            ? notifications.map(n => `
+                <div class="notification ${n.read ? '' : 'unread'}">
+                    <p>${n.message || 'No message content'}</p>
+                    <small>${formatDate(n.createdAt || new Date())}</small>
+                </div>`
+            ).join('')
+            : '<p>No notifications found.</p>';
 
     } catch (err) {
-        box.innerHTML = `<p style="color:red;">Error: ${err.message}</p>`;
-        showAlert(err.message);
+        console.error('Error loading notifications:', err);
+        box.innerHTML = `<p class="error">Error: ${err.message || 'Failed to load notifications'}</p>`;
     }
 }
 
@@ -294,7 +299,6 @@ async function loadNotifications() {
  * SYSTEM NOTIFICATIONS (Superadmin View)
  ****************************************/
 async function loadSystemNotifications() {
-    // You must add an element with this ID to your HTML dashboard (e.g., <div id="systemNotificationsList"></div>)
     const box = document.getElementById("systemNotificationsList"); 
     if (!box) {
         console.warn("Element with ID 'systemNotificationsList' not found.");
@@ -303,29 +307,49 @@ async function loadSystemNotifications() {
     box.innerHTML = `<p>Loading system alerts...</p>`;
 
     try {
-        // ✅ Targets the Superadmin-only route for system alerts
-        const res = await fetch(`${API_URL}/admin/notifications/all`, { 
-            headers: { Authorization: `Bearer ${token}` },
+        // First try the admin-specific endpoint
+        let res = await fetch(`${API_URL}/admin/notifications`, { 
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            credentials: 'include'
         });
 
-        if (!res.ok) throw await handleResponseError(res);
-        const systemNotes = await res.json();
+        // If admin endpoint fails, fall back to regular notifications
+        if (!res.ok) {
+            res = await fetch(`${API_URL}/notifications`, { 
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                credentials: 'include'
+            });
+        }
+
+        if (!res.ok) {
+            const error = await res.json().catch(() => ({}));
+            throw new Error(error.message || 'Failed to load system notifications');
+        }
+
+        const data = await res.json();
+        const systemNotes = Array.isArray(data) ? data : (data.data || []);
         
-        // This is where you would process the Notification model records
-        box.innerHTML = systemNotes.length
-            ? systemNotes.map((n) => `
-          <div class="notification system-alert ${n.read ? "" : "unread"}">
-            <p>${n.message}</p>
-            <small>Sent: ${formatDate(n.createdAt)} 
-                ${n.target ? `(${n.target.toUpperCase()})` : ''} 
-            </small> 
-            </div>`
-            ).join("")
-            : "<p>No system-wide alerts found.</p>";
+        // Filter for system notifications if needed, or show all if not distinguishable
+        const systemAlerts = systemNotes.filter(n => n.isSystem || n.target === 'all');
+
+        box.innerHTML = systemAlerts.length > 0
+            ? systemAlerts.map(n => `
+                <div class="notification system-alert ${n.read ? '' : 'unread'}">
+                    <p>${n.message || 'System notification'}</p>
+                    <small>${formatDate(n.createdAt || new Date())}</small>
+                </div>`
+            ).join('')
+            : '<p>No system alerts found.</p>';
 
     } catch (err) {
-        box.innerHTML = `<p style="color:red;">Error loading system alerts: ${err.message}</p>`;
-        showAlert(`System Notifications Error: ${err.message}`);
+        console.error('Error loading system notifications:', err);
+        box.innerHTML = `<p class="error">Error: ${err.message || 'Failed to load system alerts'}</p>`;
     }
 }
 
