@@ -9,10 +9,7 @@ import {
   getReportById,
   updateReport,
   deleteReport,
-  downloadReportAttachment,
 } from "../controllers/reportController.js";
-
-import reportUpload from "../config/multerConfig.js";
 
 const router = express.Router();
 
@@ -22,7 +19,7 @@ const router = express.Router();
 
 // POST /api/reports/
 // Create new report (User)
-router.post("/", protect, reportUpload.single('attachment'), createReport); 
+router.post("/", protect, createReport); 
 
 // GET /api/reports/
 // Get all reports (filtered by user role in controller)
@@ -67,9 +64,5 @@ router.put(
   authorize("admin", "superadmin"),
   updateAdminSummary
 );
-
-// GET /api/reports/attachment/:id
-// Download report attachment with authentication
-router.get("/attachment/:id", protect, downloadReportAttachment);
 
 export default router;

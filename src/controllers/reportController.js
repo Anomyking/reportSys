@@ -2,7 +2,6 @@ import Report from "../models/Report.js";
 import User from "../models/User.js";
 import { notifyAdmins, notifyUser } from "../utils/notify.js";
 import { io } from "../server.js";
-import path from "path";
 
 /************************************************************
  * 🔹 Create a new report
@@ -11,7 +10,6 @@ export const createReport = async (req, res) => {
   try {
     // UPDATED: Added 'urgency' from the request body
     const { title, description, category, urgency } = req.body;
-    const file = req.file;
     if (!title || !description || !category)
       return res.status(400).json({ message: "All fields are required." });
 
@@ -24,13 +22,6 @@ export const createReport = async (req, res) => {
       // UPDATED: Save the urgency field
       urgency: urgency || "Normal", 
     };
-
-    if (file) {
-      const fileName = path.basename(file.path); 
-      reportData.attachmentPath = `/uploads/reports/${fileName}`;
-      reportData.attachmentName = file.originalname;
-      reportData.attachmentMimeType = file.mimetype;
-    }
 
     const report = await Report.create(reportData);
 
