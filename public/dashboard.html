@@ -17,6 +17,7 @@
             <a href="#reportManagement">📊 Analytics</a>
             <a href="#reportForm" class="active">📝 Submit Report</a>
             <a href="#fileHistorySection">📁 My Reports</a>
+            <a href="#notificationsSection">🔔 Notifications</a>
             <a href="#adminRequestSection">👑 Request Admin Access</a>
             <a href="#profileSection" id="profileLink">⚙️ Profile</a>
             <a href="#" id="logoutBtn" class="logout">🚪 Logout</a>
@@ -98,6 +99,19 @@
             <h2>Request Admin Access</h2>
             <p>Want to help manage reports? Request admin access below.</p>
             <button id="requestAdminBtn">Request Admin Role</button>
+        </section>
+
+        <section id="notificationsSection" style="display: none;">
+            <div class="notifications-header">
+                <h2>🔔 Notifications</h2>
+                <button id="markAllReadBtn" class="btn-small">Mark All as Read</button>
+            </div>
+            <div id="notificationsList" class="notifications-list">
+                <div class="loading-notifications">
+                    <div class="spinner"></div>
+                    <p>Loading notifications...</p>
+                </div>
+            </div>
         </section>
         
         <section id="profileSection" style="display: none;">

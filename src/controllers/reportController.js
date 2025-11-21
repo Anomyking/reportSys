@@ -33,8 +33,35 @@ export const createReport = async (req, res) => {
 
     const report = await Report.create(reportData);
 
-    notifyAdmins?.(`📄 New ${category} report submitted by ${req.user.name}`, category);
-    io.emit("reportUpdated", { message: "New report submitted" });
+    try {
+      // Notify all admins and superadmins about the new report
+      await notifyAdmins(
+        `📄 New ${category} report submitted by ${req.user.name}: ${title}`,
+        category
+      );
+      
+      // Also notify superadmins specifically
+      const superAdmins = await User.find({ role: 'superadmin' });
+      await Promise.all(
+        superAdmins.map(admin => 
+          notifyUser(
+            admin._id, 
+            `📢 New ${category} report requires review: ${title}`
+          )
+        )
+      );
+      
+      io.emit("reportUpdated", { 
+        type: 'new_report',
+        message: `New ${category} report submitted`,
+        reportId: report._id,
+        category,
+        urgency: urgency || 'Normal'
+      });
+    } catch (notifyErr) {
+      console.error('Error sending notifications:', notifyErr);
+      // Don't fail the request if notification fails
+    }
 
     res.status(201).json({ success: true, data: report });
 
