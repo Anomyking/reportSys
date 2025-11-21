@@ -258,40 +258,82 @@ async function updateReportStatus(reportId, status) {
 /****************************************
  * NOTIFICATIONS - ENHANCED
  ****************************************/
-let socket;
+// Use window.socket to prevent duplicate declarations
+if (!window.socket) {
+    window.socket = null;
+}
 
 // Initialize WebSocket connection
 function initWebSocket() {
-    if (socket) return;
+    // If socket exists and is connected, don't reinitialize
+    if (window.socket?.connected) {
+        console.log('WebSocket already connected');
+        return;
+    }
     
-    socket = io(API_URL, {
-        auth: { token },
-        transports: ['websocket']
-    });
-
-    socket.on('connect', () => {
-        console.log('Connected to WebSocket server');
-    });
-
-    socket.on('reportUpdated', (data) => {
-        console.log('Report updated:', data);
-        // Refresh notifications and reports when a report is updated
-        loadNotifications();
-        loadReports();
+    try {
+        // Close existing connection if any
+        if (window.socket) {
+            window.socket.disconnect();
+        }
         
-        // Show a toast notification for new reports
-        if (data.type === 'new_report') {
-            showToast(`New ${data.category} report: ${data.message}`, 'info');
-        }
-    });
+        window.socket = io(API_URL, {
+            auth: { token },
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000
+        });
 
-    socket.on('connect_error', (err) => {
-        console.error('WebSocket connection error:', err);
-        // Fallback to polling if WebSocket fails
-        if (socket.io.opts.transports[0] === 'websocket') {
-            socket.io.opts.transports = ['polling', 'websocket'];
-        }
-    });
+        window.socket.on('connect', () => {
+            console.log('WebSocket connected successfully');
+            // Update UI to show connection status if needed
+            const statusIndicator = document.getElementById('ws-status');
+            if (statusIndicator) {
+                statusIndicator.textContent = 'Connected';
+                statusIndicator.style.color = 'green';
+            }
+        });
+
+        window.socket.on('reportUpdated', (data) => {
+            console.log('Report updated:', data);
+            // Refresh notifications and reports when a report is updated
+            loadNotifications();
+            loadReports();
+            
+            // Show a toast notification for new reports
+            if (data.type === 'new_report') {
+                showToast(`New ${data.category} report: ${data.message}`, 'info');
+            }
+        });
+
+        window.socket.on('connect_error', (err) => {
+            console.error('WebSocket connection error:', err.message);
+            // Update UI to show connection error
+            const statusIndicator = document.getElementById('ws-status');
+            if (statusIndicator) {
+                statusIndicator.textContent = 'Disconnected';
+                statusIndicator.style.color = 'red';
+            }
+            
+            // Try to reconnect after a delay
+            setTimeout(() => {
+                console.log('Attempting to reconnect WebSocket...');
+                initWebSocket();
+            }, 3000);
+        });
+        
+        window.socket.on('disconnect', (reason) => {
+            console.log(`WebSocket disconnected: ${reason}`);
+            if (reason === 'io server disconnect') {
+                // The server has forcefully disconnected the socket
+                window.socket.connect();
+            }
+        });
+        
+    } catch (err) {
+        console.error('Failed to initialize WebSocket:', err);
+    }
 }
 
 // Show toast notification
