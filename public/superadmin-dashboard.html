@@ -4,11 +4,34 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Super Admin Dashboard | Report Portal</title>
-
   <link rel="stylesheet" href="dashboard.css" />
   <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    /* Ensure sections are properly hidden by default */
+    .content-section {
+      display: none;
+    }
+    .content-section.active {
+      display: block;
+    }
+    /* Navigation styles */
+    .sidebar nav a {
+      display: block;
+      padding: 10px 15px;
+      color: #333;
+      text-decoration: none;
+      transition: background-color 0.3s;
+    }
+    .sidebar nav a:hover {
+      background-color: #f0f0f0;
+    }
+    .sidebar nav a.active {
+      background-color: #e0e0e0;
+      font-weight: bold;
+    }
+  </style>
 </head>
 
 <body>
@@ -16,48 +39,43 @@
   <aside class="sidebar">
     <h2>⚙️ Super Admin</h2>
     <nav>
-      <a class="active" data-section="overview">📊 Overview</a>
-      <a data-section="users">👥 Manage Users</a>
-      <a data-section="reports">📝 Reports</a>
-      <a data-section="notifications">🔔 Notifications</a>
+      <a href="#" class="nav-link active" data-section="overview">📊 Overview</a>
+      <a href="#" class="nav-link" data-section="users">👥 Manage Users</a>
+      <a href="#" class="nav-link" data-section="reports">📝 Reports</a>
+      <a href="#" class="nav-link" data-section="notifications">🔔 Notifications</a>
     </nav>
-    <a id="logoutBtn" class="logout">🚪 Logout</a>
+    <a id="logoutBtn" class="logout" href="#">🚪 Logout</a>
   </aside>
 
-  <!-- Main -->
+  <!-- Main Content -->
   <main class="content">
-
-    <!-- Overview -->
-    <section id="overview" class="active">
+    <!-- Overview Section -->
+    <section id="overview" class="content-section active">
       <h2>📈 Overview</h2>
-
       <div class="bento-grid">
         <div class="bento-card">
           <h3>Total Users</h3>
           <p class="metric" id="totalUsers">0</p>
           <small>👥 All registered users</small>
         </div>
-
         <div class="bento-card">
           <h3>Total Admins</h3>
           <p class="metric" id="totalAdmins">0</p>
           <small>🛡️ Admin & superadmin users</small>
         </div>
-
         <div class="bento-card">
           <h3>Total Reports</h3>
           <p class="metric" id="totalReports">0</p>
           <small>📄 All submitted reports</small>
         </div>
       </div>
-
       <div class="chart-container">
         <canvas id="reportsChart"></canvas>
       </div>
     </section>
 
-    <!-- Users -->
-    <section id="users">
+    <!-- Users Section -->
+    <section id="users" class="content-section">
       <h2>👥 Manage Users</h2>
       <div class="table-container">
         <table>
@@ -70,29 +88,26 @@
             </tr>
           </thead>
           <tbody id="usersTable">
-            <tr>
-              <td colspan="4" class="center">Loading...</td>
-            </tr>
+            <tr><td colspan="4" class="center">Loading...</td></tr>
           </tbody>
         </table>
       </div>
     </section>
 
-    <!-- Reports -->
-    <section id="reports">
+    <!-- Reports Section -->
+    <section id="reports" class="content-section">
       <h2>📝 Reports</h2>
       <div id="reportsContainer" class="report-list">
         <p>Loading reports...</p>
       </div>
     </section>
 
-    <!-- Notifications -->
-    <section id="notifications">
+    <!-- Notifications Section -->
+    <section id="notifications" class="content-section">
       <h2>🔔 Notifications</h2>
       <div id="notificationsList" class="notifications-container">
         <p>Loading notifications...</p>
       </div>
-      
       <h3>System Alerts</h3>
       <div id="systemNotificationsList" class="alerts-container">
         <p>Loading system alerts...</p>
@@ -100,32 +115,85 @@
     </section>
   </main>
 
-  <!-- Section Switcher -->
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      const navLinks = document.querySelectorAll(".sidebar nav a");
-      const sections = document.querySelectorAll(".content > section");
+      // Navigation functionality
+      function setupNavigation() {
+        const navLinks = document.querySelectorAll('.nav-link');
+        const sections = document.querySelectorAll('.content-section');
 
-      navLinks.forEach(link => {
-        link.addEventListener("click", (e) => {
-          e.preventDefault();
-          const targetSectionId = link.getAttribute('data-section');
-          const targetSection = document.getElementById(targetSectionId);
+        function switchSection(sectionId) {
+          // Hide all sections
+          sections.forEach(section => section.classList.remove('active'));
           
-          if (!targetSection) {
-            console.warn(`Section with ID "${targetSectionId}" not found`);
+          // Show the selected section
+          const activeSection = document.getElementById(sectionId);
+          if (activeSection) {
+            activeSection.classList.add('active');
+          } else {
+            console.error(`Section with ID "${sectionId}" not found`);
             return;
           }
 
-          // Update active states
-          navLinks.forEach(l => l.classList.remove("active"));
-          sections.forEach(s => s.classList.remove("active"));
+          // Update active link
+          navLinks.forEach(link => {
+            link.classList.toggle('active', link.getAttribute('data-section') === sectionId);
+          });
+
+          // Load section-specific content
+          loadSectionContent(sectionId);
           
-          link.classList.add("active");
-          targetSection.classList.add("active");
+          // Scroll to top
           document.querySelector(".content").scrollTop = 0;
+        }
+
+        // Add click event to navigation links
+        navLinks.forEach(link => {
+          link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const sectionId = this.getAttribute('data-section');
+            if (sectionId) {
+              // Update URL without page reload
+              history.pushState({ section: sectionId }, '', `#${sectionId}`);
+              switchSection(sectionId);
+            }
+          });
         });
-      });
+
+        // Handle browser back/forward buttons
+        window.addEventListener('popstate', function(e) {
+          const sectionId = (e.state && e.state.section) || 'overview';
+          switchSection(sectionId);
+        });
+
+        // Initial load - check URL hash
+        const initialSection = window.location.hash.substring(1) || 'overview';
+        switchSection(initialSection);
+      }
+
+      // Load content for the current section
+      function loadSectionContent(sectionId) {
+        console.log(`Loading content for section: ${sectionId}`);
+        // Add any section-specific loading logic here
+        switch(sectionId) {
+          case 'overview':
+            if (typeof loadOverview === 'function') loadOverview();
+            break;
+          case 'users':
+            if (typeof loadAllUsers === 'function') loadAllUsers();
+            break;
+          case 'reports':
+            if (typeof loadReports === 'function') loadReports();
+            break;
+          case 'notifications':
+            if (typeof loadNotifications === 'function') loadNotifications();
+            if (typeof loadSystemNotifications === 'function') loadSystemNotifications();
+            break;
+        }
+      }
+
+      // Initialize navigation
+      setupNavigation();
     });
   </script>
 
