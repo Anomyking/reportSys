@@ -221,7 +221,8 @@ async function updateReportStatus(reportId, status) {
     }
 
     try {
-        const response = await fetch(`${API_URL}/api/reports/${reportId}/status`, {
+        // Using the admin endpoint for report status updates
+        const response = await fetch(`${API_URL}/admin/reports/${reportId}/status`, {
             method: 'PATCH',
             headers: { 
                 'Content-Type': 'application/json',
@@ -230,7 +231,11 @@ async function updateReportStatus(reportId, status) {
             body: JSON.stringify({ status })
         });
 
-        await handleResponseError(response);
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.message || 'Failed to update report status');
+        }
+
         showAlert(`Report ${status.toLowerCase()}ed successfully!`);
         loadReports(); // Refresh the reports list
     } catch (err) {
