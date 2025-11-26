@@ -50,39 +50,6 @@ export const changePassword = async (req, res) => {
 };
 
 /************************************************************
- * Upload Profile Photo (UPDATED FOR CLOUDINARY)
- ************************************************************/
-export const uploadProfilePhoto = async (req, res) => {
-  try {
-    // 1. Safety check for file
-    if (!req.file) {
-      return res.status(400).json({ message: "No file uploaded." });
-    }
-
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    // 2. IMPORTANT: Get the public Cloudinary URL from the req.file object
-    // This property contains the final, accessible URL.
-    const cloudinaryUrl = req.file.path; 
-
-    // 3. Save the public URL to the user model
-    user.profilePhoto = cloudinaryUrl;
-    await user.save();
-
-    res.json({ 
-      message: "✅ Profile photo updated successfully", 
-      profilePhoto: user.profilePhoto // Returns the full public URL
-    });
-
-  } catch (error) {
-    // Log the error for debugging on Render
-    console.error("Cloudinary Upload/DB Update Error:", error);
-    res.status(500).json({ message: "Internal Server Error during profile photo update." });
-  }
-};
-
-/************************************************************
  * Delete Account
  ************************************************************/
 export const deleteAccount = async (req, res) => {
