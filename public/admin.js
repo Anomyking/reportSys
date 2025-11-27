@@ -125,17 +125,18 @@ async function loadOverview() {
 // Load reports with optional filtering
 async function loadReports() {
     const container = document.getElementById("reportsList");
-    if (!container) return;
-    container.innerHTML = `<p>Loading reports...</p>`;
+    if (!container) {
+        console.error('Reports container not found');
+        return;
+    }
+    container.innerHTML = '<tr><td colspan="4" class="center">Loading reports...</td></tr>';
 
     try {
         const status = document.getElementById("reportStatusFilter")?.value || '';
-        // Fix: Remove the extra /api from the URL since API_URL already includes it
-        const baseUrl = API_URL.endsWith('/api') ? API_URL.slice(0, -4) : API_URL;
-        const url = new URL(`${baseUrl}/admin/reports`);
+        const url = new URL(`${API_URL}/admin/reports`);
         if (status) url.searchParams.append('status', status);
 
-        console.log('Fetching reports from:', url.toString()); // Debug log
+        console.log('Fetching reports from:', url.toString());
 
         const res = await fetch(url, {
             headers: { 
@@ -144,21 +145,20 @@ async function loadReports() {
                 'Cache-Control': 'no-cache',
                 'Pragma': 'no-cache'
             },
-            credentials: 'include'  // Include cookies if using session-based auth
+            credentials: 'include'
         });
 
-        console.log('Response status:', res.status); // Debug log
+        console.log('Response status:', res.status);
 
         if (!res.ok) {
             const error = await handleResponseError(res);
             console.error('API Error:', error);
-            throw error;
+            container.innerHTML = `<tr><td colspan="4" class="error">Error loading reports: ${error.message}</td></tr>`;
+            return;
         }
         
-        let reports = await res.json();
-        console.log('Received reports data:', reports); // Debug log
-        
-        if (reports.data) reports = reports.data;
+        let { data: reports = [] } = await res.json();
+        console.log('Received reports data:', reports);
 
         // Sort reports: pending first, then by date
         reports.sort((a, b) => {
@@ -167,26 +167,23 @@ async function loadReports() {
             return new Date(b.createdAt) - new Date(a.createdAt);
         });
 
-        // Render reports
-        container.innerHTML = reports.length
+        // Render reports in table format
+        container.innerHTML = reports.length > 0
             ? reports.map(report => `
-                <div class="report-card" data-id="${report._id}">
-                    <h3>${report.title || 'No title'}</h3>
-                    <p>${report.description || 'No description'}</p>
-                    <div class="report-meta">
-                        <span class="status ${report.status.toLowerCase()}">${report.status}</span>
-                        <span>${formatDate(report.createdAt)}</span>
-                    </div>
-                    <div class="report-actions">
+                <tr data-id="${report._id}">
+                    <td>${report.title || 'No title'}</td>
+                    <td><span class="status ${report.status.toLowerCase()}">${report.status}</span></td>
+                    <td>${formatDate(report.createdAt)}</td>
+                    <td class="actions">
                         ${report.status === 'Pending' ? `
                             <button class="btn-approve" onclick="updateReportStatus('${report._id}', 'Approved')">Approve</button>
                             <button class="btn-reject" onclick="updateReportStatus('${report._id}', 'Rejected')">Reject</button>
                         ` : ''}
                         <button class="btn-view" onclick="viewReportDetails('${report._id}')">View</button>
-                    </div>
-                </div>
+                    </td>
+                </tr>
             `).join('')
-            : '<p>No reports found.</p>';
+            : '<tr><td colspan="4" class="center">No reports found.</td></tr>';
 
     } catch (err) {
         container.innerHTML = `<p class="error">Error: ${err.message}</p>`;
@@ -212,15 +209,30 @@ async function loadNotifications() {
         const data = await res.json();
         const notifications = Array.isArray(data) ? data : (data.data || []);
         
+        // First render the notifications with proper IDs
         container.innerHTML = notifications.length
-            ? notifications.map(n => `
-                <div class="notification ${n.read ? '' : 'unread'}" data-id="${n._id}">
+            ? notifications.map(n => {
+                // Ensure we have a valid ID, or generate a temporary one if missing
+                const notificationId = n._id || `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                return `
+                <div class="notification ${n.read ? '' : 'unread'}" data-id="${notificationId}">
                     <p>${n.message || 'No message'}</p>
                     <small>${formatDate(n.createdAt)}</small>
-                    ${!n.read ? `<button onclick="markAsRead('${n._id}')">Mark as read</button>` : ''}
-                </div>`
-            ).join('')
+                    ${!n.read ? `<button class="mark-as-read" data-id="${notificationId}">Mark as read</button>` : ''}
+                </div>`;
+            }).join('')
             : '<p>No notifications found.</p>';
+            
+        // Add event delegation for mark as read buttons
+        container.addEventListener('click', async (e) => {
+            const button = e.target.closest('.mark-as-read');
+            if (button) {
+                const notificationId = button.dataset.id;
+                if (notificationId) {
+                    await markAsRead(notificationId);
+                }
+            }
+        });
 
     } catch (err) {
         container.innerHTML = `<p class="error">Error: ${err.message}</p>`;
