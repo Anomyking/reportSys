@@ -127,16 +127,25 @@ function showSection(sectionId) {
 async function loadOverview() {
     try {
         const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = 'login.html';
+            return;
+        }
+
         const [reportsRes, statsRes] = await Promise.all([
             fetch(`${API_URL}/admin/overview`, {
                 headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'  // Important for cookies if using them
             }),
             fetch(`${API_URL}/admin/stats`, {
                 headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include'  // Important for cookies if using them
             })
         ]);
 
@@ -190,10 +199,17 @@ async function loadReports() {
 async function loadNotifications() {
     try {
         const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = 'login.html';
+            return;
+        }
+
         const res = await fetch(`${API_URL}/admin/notifications`, {
             headers: {
-                'Authorization': `Bearer ${token}`
-            }
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include'  // Important for cookies if using them
         });
 
         if (!res.ok) {

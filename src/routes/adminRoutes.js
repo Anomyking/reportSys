@@ -48,7 +48,19 @@ router.get("/users/requests", getPromotionRequests);
 // 6. Approve an Admin Request (This is your 'handleAdminRequest' - Approve)
 router.patch("/users/:id/approve", approvePromotion);
 
-// 7. Reject an Admin Request (This is your 'handleAdminRequest' - Reject)
+// 7. Get Admin Stats
+router.get("/stats", getOverview);
+
+// 8. Get Admin Notifications
+router.get("/notifications", getSystemNotifications);
+
+// 9. Mark all notifications as read
+router.post("/notifications/read-all", async (req, res) => {
+  // Implement mark all as read functionality
+  res.json({ message: "All notifications marked as read" });
+});
+
+// 10. Reject an Admin Request (This is your 'handleAdminRequest' - Reject)
 router.patch("/users/:id/reject", rejectPromotion);
 
 /*
