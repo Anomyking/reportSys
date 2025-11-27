@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard | Report Portal</title>
+  <link rel="stylesheet" href="dashboard.css" />
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    /* Ensure sections are properly hidden by default */
+    .content-section {
+      display: none;
+    }
+    .content-section.active {
+      display: block;
+    }
+    /* Navigation styles */
+    .sidebar nav a {
+      display: block;
+      padding: 10px 15px;
+      color: #333;
+      text-decoration: none;
+      transition: background-color 0.3s;
+    }
+    .sidebar nav a:hover {
+      background-color: #f0f0f0;
+    }
+    .sidebar nav a.active {
+      background-color: #e0e0e0;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <h2>⚙️ Admin Panel</h2>
+    <nav>
+      <a href="#" class="nav-link active" data-section="overview">📊 Overview</a>
+      <a href="#" class="nav-link" data-section="reports">📝 Reports</a>
+      <a href="#" class="nav-link" data-section="notifications">🔔 Notifications</a>
+    </nav>
+    <a id="logoutBtn" class="logout" href="#">🚪 Logout</a>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="content">
+    <!-- Overview Section -->
+    <section id="overview" class="content-section active">
+      <h1>Admin Dashboard Overview</h1>
+      <div class="stats-container">
+        <div class="stat-card">
+          <h3>Total Reports</h3>
+          <p id="totalReports">0</p>
+        </div>
+        <div class="stat-card">
+          <h3>Pending Approval</h3>
+          <p id="pendingReports">0</p>
+        </div>
+        <div class="stat-card">
+          <h3>Approved</h3>
+          <p id="approvedReports">0</p>
+        </div>
+        <div class="stat-card">
+          <h3>Rejected</h3>
+          <p id="rejectedReports">0</p>
+        </div>
+      </div>
+      
+      <div class="chart-container">
+        <canvas id="reportsChart"></canvas>
+      </div>
+    </section>
+
+    <!-- Reports Section -->
+    <section id="reports" class="content-section">
+      <h1>Reports Management</h1>
+      <div class="filters">
+        <select id="reportStatusFilter">
+          <option value="">All Statuses</option>
+          <option value="Pending">Pending</option>
+          <option value="Approved">Approved</option>
+          <option value="Rejected">Rejected</option>
+        </select>
+        <button id="applyFilterBtn">Apply Filter</button>
+      </div>
+      <div class="reports-list" id="reportsList">
+        <!-- Reports will be loaded here -->
+      </div>
+    </section>
+
+    <!-- Notifications Section -->
+    <section id="notifications" class="content-section">
+      <div class="notifications-header">
+        <h1>🔔 Notifications</h1>
+        <button id="markAllReadBtn">Mark All as Read</button>
+      </div>
+      <div class="notifications-list" id="notificationsList">
+        <!-- Notifications will be loaded here -->
+      </div>
+    </section>
+  </main>
+
+  <!-- Include Admin JavaScript -->
+  <script src="admin.js"></script>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Navigation functionality
+      function setupNavigation() {
+        const navLinks = document.querySelectorAll('.nav-link');
+        const sections = document.querySelectorAll('.content-section');
+
+        navLinks.forEach(link => {
+          link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const sectionId = this.getAttribute('data-section');
+            
+            // Update active link
+            navLinks.forEach(link => link.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Show corresponding section
+            sections.forEach(section => {
+              section.classList.remove('active');
+              if (section.id === sectionId) {
+                section.classList.add('active');
+              }
+            });
+          });
+        });
+      }
+
+      // Load content for the current section
+      async function loadSectionContent(sectionId) {
+        try {
+          // Here you would typically fetch data from your API
+          // For now, we'll just show the section
+          console.log(`Loading content for ${sectionId}...`);
+          
+          // Example: If it's the reports section, you might want to load reports
+          if (sectionId === 'reports') {
+            // Load reports logic here
+          }
+          
+        } catch (error) {
+          console.error('Error loading section content:', error);
+        }
+      }
+
+      // Initialize navigation
+      setupNavigation();
+      
+      // Logout functionality
+      document.getElementById('logoutBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+        // Clear any stored tokens or user data
+        localStorage.removeItem('token');
+        // Redirect to login page
+        window.location.href = 'login.html';
+      });
+    });
+  </script>
+</body>
+</html>
