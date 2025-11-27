@@ -1,61 +1,31 @@
-/************************************************************
- * ADMIN DASHBOARD - JAVASCRIPT
- * Handles admin-specific functionality
- ************************************************************/
+/****************************************
+ * ADMIN DASHBOARD
+ ****************************************/
+const API_URL = window.CONFIG?.API_URL || "https://reportsys.onrender.com/api";
+const token = localStorage.getItem("token");
+const userRole = localStorage.getItem("role");
 
-const API_URL = "https://reportsys.onrender.com/api";
-let currentUser = {};
+// Redirect if not admin
+if (!token || userRole !== "admin") {
+    localStorage.clear();
+    window.location.href = "/login.html";
+}
 
-// DOM Elements
-const overviewSection = document.getElementById('overview');
-const reportsSection = document.getElementById('reports');
-const notificationsSection = document.getElementById('notifications');
-const reportsList = document.getElementById('reportsList');
-const notificationsList = document.getElementById('notificationsList');
-const reportStatusFilter = document.getElementById('reportStatusFilter');
-const applyFilterBtn = document.getElementById('applyFilterBtn');
-const markAllReadBtn = document.getElementById('markAllReadBtn');
-const logoutBtn = document.getElementById('logoutBtn');
+function showAlert(msg) {
+    console.error("Admin Dashboard:", msg);
+    // You can implement a toast notification here if needed
+}
 
-// Initialize the dashboard
-document.addEventListener('DOMContentLoaded', async () => {
-    // Check authentication
-    const token = localStorage.getItem('token');
-    if (!token) {
-        window.location.href = 'login.html';
-        return;
-    }
+const formatDate = (date) => new Date(date).toLocaleString();
 
-    try {
-        // Fetch current user data
-        const userRes = await fetch(`${API_URL}/auth/profile`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        if (!userRes.ok) {
-            throw new Error('Failed to fetch user data');
-        }
-
-        currentUser = await userRes.json();
-
-        // Verify admin role
-        if (currentUser.role !== 'admin') {
-            window.location.href = 'dashboard.html';
-            return;
-        }
-
-        // Initialize dashboard
-        setupEventListeners();
-        loadOverview();
-        loadReports();
-        loadNotifications();
-
-    } catch (error) {
-        console.error('Initialization error:', error);
-        window.location.href = 'login.html';
-    }
+/****************************************
+ * INIT
+ ****************************************/
+document.addEventListener("DOMContentLoaded", () => {
+    loadOverview();
+    loadReports();
+    loadNotifications();
+    initWebSocket();
 });
 
 // Set up event listeners
@@ -70,16 +40,17 @@ function setupEventListeners() {
     });
 
     // Report filter
-    if (applyFilterBtn) {
-        applyFilterBtn.addEventListener('click', loadReports);
+    if (document.getElementById('applyFilterBtn')) {
+        document.getElementById('applyFilterBtn').addEventListener('click', loadReports);
     }
 
-    // Mark all notifications as read
-    if (markAllReadBtn) {
-        markAllReadBtn.addEventListener('click', markAllNotificationsAsRead);
+    // Mark all as read
+    if (document.getElementById('markAllReadBtn')) {
+        document.getElementById('markAllReadBtn').addEventListener('click', markAllNotificationsAsRead);
     }
 
     // Logout
+    const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', handleLogout);
     }
@@ -126,260 +97,319 @@ function showSection(sectionId) {
 // Load overview data
 async function loadOverview() {
     try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-            window.location.href = 'login.html';
-            return;
+        const res = await fetch(`${API_URL}/admin/overview`, {
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!res.ok) throw await handleResponseError(res);
+        const data = await res.json();
+
+        // Update UI elements
+        document.getElementById("totalReports").textContent = data.reports || 0;
+        document.getElementById("pendingReports").textContent = data.pending || 0;
+        document.getElementById("approvedReports").textContent = data.approved || 0;
+
+        // Render chart if data available
+        if (data.reportStats) {
+            renderChart(data.reportStats);
         }
 
-        const [reportsRes, statsRes] = await Promise.all([
-            fetch(`${API_URL}/admin/overview`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include'  // Important for cookies if using them
-            }),
-            fetch(`${API_URL}/admin/stats`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include'  // Important for cookies if using them
-            })
-        ]);
-
-        if (!reportsRes.ok || !statsRes.ok) {
-            throw new Error('Failed to load overview data');
-        }
-
-        const reports = await reportsRes.json();
-        const stats = await statsRes.json();
-
-        // Update UI with the fetched data
-        updateOverviewUI(reports, stats);
-
-    } catch (error) {
-        console.error('Error loading overview:', error);
-        showError('Failed to load overview data');
+    } catch (err) {
+        showAlert(err.message);
     }
 }
 
 // Load reports with optional filtering
 async function loadReports() {
-    try {
-        const token = localStorage.getItem('token');
-        const status = reportStatusFilter ? reportStatusFilter.value : '';
+    const container = document.getElementById("reportsList");
+    if (!container) return;
+    container.innerHTML = `<p>Loading reports...</p>`;
 
+    try {
+        const status = document.getElementById("reportStatusFilter")?.value || '';
         const url = new URL(`${API_URL}/admin/reports`);
-        if (status) {
-            url.searchParams.append('status', status);
-        }
+        if (status) url.searchParams.append('status', status);
 
         const res = await fetch(url, {
-            headers: {
-                'Authorization': `Bearer ${token}`
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
             }
         });
 
-        if (!res.ok) {
-            throw new Error('Failed to load reports');
-        }
+        if (!res.ok) throw await handleResponseError(res);
+        
+        let reports = await res.json();
+        if (reports.data) reports = reports.data;
 
-        const reports = await res.json();
-        renderReportsList(reports);
+        // Sort reports: pending first, then by date
+        reports.sort((a, b) => {
+            if (a.status === 'Pending' && b.status !== 'Pending') return -1;
+            if (a.status !== 'Pending' && b.status === 'Pending') return 1;
+            return new Date(b.createdAt) - new Date(a.createdAt);
+        });
 
-    } catch (error) {
-        console.error('Error loading reports:', error);
-        showError('Failed to load reports');
+        // Render reports
+        container.innerHTML = reports.length
+            ? reports.map(report => `
+                <div class="report-card" data-id="${report._id}">
+                    <h3>${report.title || 'No title'}</h3>
+                    <p>${report.description || 'No description'}</p>
+                    <div class="report-meta">
+                        <span class="status ${report.status.toLowerCase()}">${report.status}</span>
+                        <span>${formatDate(report.createdAt)}</span>
+                    </div>
+                    <div class="report-actions">
+                        ${report.status === 'Pending' ? `
+                            <button class="btn-approve" onclick="updateReportStatus('${report._id}', 'Approved')">Approve</button>
+                            <button class="btn-reject" onclick="updateReportStatus('${report._id}', 'Rejected')">Reject</button>
+                        ` : ''}
+                        <button class="btn-view" onclick="viewReportDetails('${report._id}')">View</button>
+                    </div>
+                </div>
+            `).join('')
+            : '<p>No reports found.</p>';
+
+    } catch (err) {
+        container.innerHTML = `<p class="error">Error: ${err.message}</p>`;
+        showAlert(err.message);
     }
 }
 
 // Load notifications
 async function loadNotifications() {
+    const container = document.getElementById("notificationsList");
+    if (!container) return;
+    
     try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-            window.location.href = 'login.html';
-            return;
-        }
-
-        const res = await fetch(`${API_URL}/admin/notifications`, {
-            headers: {
+        const res = await fetch(`${API_URL}/notifications`, {
+            headers: { 
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
-            },
-            credentials: 'include'  // Important for cookies if using them
+            }
         });
 
-        if (!res.ok) {
-            throw new Error('Failed to load notifications');
-        }
+        if (!res.ok) throw await handleResponseError(res);
+        
+        const data = await res.json();
+        const notifications = Array.isArray(data) ? data : (data.data || []);
+        
+        container.innerHTML = notifications.length
+            ? notifications.map(n => `
+                <div class="notification ${n.read ? '' : 'unread'}" data-id="${n._id}">
+                    <p>${n.message || 'No message'}</p>
+                    <small>${formatDate(n.createdAt)}</small>
+                    ${!n.read ? `<button onclick="markAsRead('${n._id}')">Mark as read</button>` : ''}
+                </div>`
+            ).join('')
+            : '<p>No notifications found.</p>';
 
-        const notifications = await res.json();
-        renderNotifications(notifications);
-
-    } catch (error) {
-        console.error('Error loading notifications:', error);
-        showError('Failed to load notifications');
+    } catch (err) {
+        container.innerHTML = `<p class="error">Error: ${err.message}</p>`;
+        console.error('Error loading notifications:', err);
     }
 }
 
 // Mark all notifications as read
 async function markAllNotificationsAsRead() {
     try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${API_URL}/admin/notifications/read-all`, {
-            method: 'POST',
-            headers: {
+        const res = await fetch(`${API_URL}/notifications/read-all`, {
+            method: 'PUT',
+            headers: { 
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             }
         });
 
-        if (!res.ok) {
-            throw new Error('Failed to mark notifications as read');
-        }
-
-        // Reload notifications
-        loadNotifications();
-
-    } catch (error) {
-        console.error('Error marking notifications as read:', error);
-        showError('Failed to update notifications');
+        if (!res.ok) throw await handleResponseError(res);
+        
+        // Update UI
+        document.querySelectorAll('.notification').forEach(notification => {
+            notification.classList.remove('unread');
+            const button = notification.querySelector('button');
+            if (button) button.remove();
+        });
+        
+        showAlert('All notifications marked as read');
+        
+    } catch (err) {
+        console.error('Error marking all as read:', err);
+        showAlert('Failed to mark all as read');
     }
 }
 
 // Update report status
 async function updateReportStatus(reportId, status) {
+    if (!confirm(`Are you sure you want to ${status.toLowerCase()} this report?`)) {
+        return;
+    }
+
     try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${API_URL}/admin/reports/${reportId}/status`, {
+        const res = await fetch(`${API_URL}/admin/reports/${reportId}`, {
             method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` 
             },
             body: JSON.stringify({ status })
         });
 
-        if (!res.ok) {
-            throw new Error('Failed to update report status');
-        }
-
-        // Reload reports
+        if (!res.ok) throw await handleResponseError(res);
+        
+        showAlert(`Report ${status.toLowerCase()}ed successfully!`);
         loadReports();
         loadOverview(); // Refresh stats
 
-    } catch (error) {
-        console.error('Error updating report status:', error);
-        showError('Failed to update report status');
+    } catch (err) {
+        console.error('Error updating report status:', err);
+        showAlert(`Failed to update report: ${err.message || 'Unknown error occurred'}`);
     }
 }
 
-// Render reports list
-function renderReportsList(reports) {
-    if (!reportsList) return;
+// View report details
+function viewReportDetails(reportId) {
+    window.location.href = `report-details.html?id=${reportId}`;
+}
 
-    if (reports.length === 0) {
-        reportsList.innerHTML = '<p>No reports found.</p>';
-        return;
+// Mark notification as read
+async function markAsRead(notificationId) {
+    try {
+        // Skip if it's a temporary ID (starts with 'temp-')
+        if (notificationId.startsWith('temp-')) {
+            // Just update the UI for temporary IDs
+            const notification = document.querySelector(`.notification[data-id="${notificationId}"]`);
+            if (notification) {
+                notification.classList.remove('unread');
+                const button = notification.querySelector('button');
+                if (button) button.remove();
+            }
+            return;
+        }
+
+        const res = await fetch(`${API_URL}/notifications/${notificationId}/read`, {
+            method: 'PUT',
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!res.ok) throw await handleResponseError(res);
+        
+        // Update UI
+        const notification = document.querySelector(`.notification[data-id="${notificationId}"]`);
+        if (notification) {
+            notification.classList.remove('unread');
+            const button = notification.querySelector('button');
+            if (button) button.remove();
+        }
+        
+    } catch (err) {
+        console.error('Error marking notification as read:', err);
+        showAlert('Failed to mark notification as read');
     }
-
-    const html = reports.map(report => `
-        <div class="report-card" data-id="${report._id}">
-            <h3>${report.title}</h3>
-            <p>${report.description}</p>
-            <div class="report-meta">
-                <span class="status ${report.status.toLowerCase()}">${report.status}</span>
-                <span>${new Date(report.createdAt).toLocaleDateString()}</span>
-            </div>
-            <div class="report-actions">
-                <button class="btn-approve" onclick="updateReportStatus('${report._id}', 'approved')">Approve</button>
-                <button class="btn-reject" onclick="updateReportStatus('${report._id}', 'rejected')">Reject</button>
-            </div>
-        </div>
-    `).join('');
-
-    reportsList.innerHTML = html;
 }
 
-// Render notifications
-function renderNotifications(notifications) {
-    if (!notificationsList) return;
+// Initialize WebSocket connection
+function initWebSocket() {
+    if (window.socket?.connected) return;
 
-    if (notifications.length === 0) {
-        notificationsList.innerHTML = '<p>No notifications.</p>';
-        return;
+    try {
+        if (window.socket) window.socket.disconnect();
+        
+        window.socket = io(API_URL, {
+            auth: { token },
+            transports: ['websocket', 'polling']
+        });
+
+        window.socket.on('connect', () => {
+            console.log('WebSocket connected');
+        });
+
+        window.socket.on('reportUpdated', (data) => {
+            loadNotifications();
+            loadReports();
+            showToast(`New update: ${data.message || 'Report updated'}`, 'info');
+        });
+
+        window.socket.on('connect_error', (err) => {
+            console.error('WebSocket error:', err.message);
+            setTimeout(initWebSocket, 3000);
+        });
+
+    } catch (err) {
+        console.error('WebSocket init failed:', err);
     }
-
-    const html = notifications.map(notification => `
-        <div class="notification ${notification.read ? 'read' : 'unread'}" data-id="${notification._id}">
-            <p>${notification.message}</p>
-            <small>${new Date(notification.createdAt).toLocaleString()}</small>
-        </div>
-    `).join('');
-
-    notificationsList.innerHTML = html;
 }
 
-// Update overview UI with data
-function updateOverviewUI(reports, stats) {
-    // Update stats
-    document.getElementById('totalReports').textContent = stats.total || 0;
-    document.getElementById('pendingReports').textContent = stats.pending || 0;
-    document.getElementById('approvedReports').textContent = stats.approved || 0;
-    document.getElementById('rejectedReports').textContent = stats.rejected || 0;
-
-    // Render chart if needed
-    renderOverviewChart(reports);
-}
-
-// Render overview chart
-function renderOverviewChart(reports) {
-    const ctx = document.getElementById('reportsChart');
+// Render chart
+function renderChart(stats) {
+    const ctx = document.getElementById("reportsChart");
     if (!ctx) return;
 
-    // Group reports by status
-    const statusCounts = reports.reduce((acc, report) => {
-        acc[report.status] = (acc[report.status] || 0) + 1;
-        return acc;
-    }, {});
+    const data = [
+        stats.Pending || 0, 
+        stats.Approved || 0, 
+        stats.Rejected || 0
+    ];
+    
+    if (ctx._chartInstance) ctx._chartInstance.destroy();
 
-    // Create chart
-    new Chart(ctx, {
-        type: 'bar',
+    ctx._chartInstance = new Chart(ctx, {
+        type: "doughnut",
         data: {
-            labels: ['Pending', 'Approved', 'Rejected'],
-            datasets: [{
-                label: 'Reports by Status',
-                data: [
-                    statusCounts['Pending'] || 0,
-                    statusCounts['Approved'] || 0,
-                    statusCounts['Rejected'] || 0
-                ],
-                backgroundColor: [
-                    'rgba(255, 206, 86, 0.7)',
-                    'rgba(75, 192, 192, 0.7)',
-                    'rgba(255, 99, 132, 0.7)'
-                ],
-                borderColor: [
-                    'rgba(255, 206, 86, 1)',
-                    'rgba(75, 192, 192, 1)',
-                    'rgba(255, 99, 132, 1)'
-                ],
+            labels: ["Pending", "Approved", "Rejected"],
+            datasets: [{ 
+                data, 
+                backgroundColor: ["#FFDEDE", "#4CAF50", "#F44336"],
                 borderWidth: 1
-            }]
+            }],
         },
         options: {
             responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
                 }
             }
         }
     });
+}
+
+// Show toast notification
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.classList.add('show');
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }, 100);
+}
+
+// Handle response errors
+async function handleResponseError(res) {
+    if (res.status === 401) {
+        localStorage.clear();
+        window.location.href = '/login.html';
+        return new Error('Session expired. Please login again.');
+    }
+
+    try {
+        const data = await res.json();
+        return new Error(data.message || `Request failed (${res.status})`);
+    } catch {
+        return new Error(`Request failed (${res.status})`);
+    }
 }
 
 // Show error message
@@ -394,15 +424,21 @@ function showError(message) {
         content.insertBefore(errorDiv, content.firstChild);
         setTimeout(() => errorDiv.remove(), 5000);
     }
+    
+    // Also log to console
+    console.error('Error:', message);
 }
 
 // Handle logout
 function handleLogout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
-    localStorage.removeItem('name');
-    window.location.href = 'login.html';
+    if (window.socket) {
+        window.socket.disconnect();
+    }
+    localStorage.clear();
+    window.location.href = '/login.html';
 }
 
-// Make updateReportStatus available globally
+// Make functions available globally
 window.updateReportStatus = updateReportStatus;
+window.viewReportDetails = viewReportDetails;
+window.markAsRead = markAsRead;
