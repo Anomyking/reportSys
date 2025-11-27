@@ -130,19 +130,34 @@ async function loadReports() {
 
     try {
         const status = document.getElementById("reportStatusFilter")?.value || '';
-        const url = new URL(`${API_URL}/admin/reports`);
+        // Fix: Remove the extra /api from the URL since API_URL already includes it
+        const baseUrl = API_URL.endsWith('/api') ? API_URL.slice(0, -4) : API_URL;
+        const url = new URL(`${baseUrl}/admin/reports`);
         if (status) url.searchParams.append('status', status);
+
+        console.log('Fetching reports from:', url.toString()); // Debug log
 
         const res = await fetch(url, {
             headers: { 
                 'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+            },
+            credentials: 'include'  // Include cookies if using session-based auth
         });
 
-        if (!res.ok) throw await handleResponseError(res);
+        console.log('Response status:', res.status); // Debug log
+
+        if (!res.ok) {
+            const error = await handleResponseError(res);
+            console.error('API Error:', error);
+            throw error;
+        }
         
         let reports = await res.json();
+        console.log('Received reports data:', reports); // Debug log
+        
         if (reports.data) reports = reports.data;
 
         // Sort reports: pending first, then by date
@@ -280,7 +295,7 @@ async function markAsRead(notificationId) {
         // Skip if it's a temporary ID (starts with 'temp-') or undefined
         if (!notificationId || notificationId.startsWith('temp-')) {
             // Just update the UI for temporary/undefined IDs
-            if (notificationId) {  // Only try to update UI if we have an ID
+            if (notificationId) {
                 const notification = document.querySelector(`.notification[data-id="${notificationId}"]`);
                 if (notification) {
                     notification.classList.remove('unread');
@@ -297,23 +312,42 @@ async function markAsRead(notificationId) {
             return;
         }
 
-        const res = await fetch(`${API_URL}/notifications/${notificationId}/read`, {
+        const baseUrl = API_URL.endsWith('/api') ? API_URL.slice(0, -4) : API_URL;
+        const res = await fetch(`${baseUrl}/api/notifications/${notificationId}/read`, {
             method: 'PUT',
             headers: { 
                 'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
             },
-            credentials: 'include'  // Include cookies if using session-based auth
+            credentials: 'include'
         });
 
-        if (!res.ok) throw await handleResponseError(res);
-        
+        if (!res.ok) {
+            const error = await handleResponseError(res);
+            console.error('Error marking notification as read:', error);
+            throw error;
+        }
+
         // Update UI
         const notification = document.querySelector(`.notification[data-id="${notificationId}"]`);
         if (notification) {
             notification.classList.remove('unread');
             const button = notification.querySelector('button');
             if (button) button.remove();
+        }
+
+        // Refresh notifications count in the UI if needed
+        const unreadCount = document.querySelector('.notification-badge');
+        if (unreadCount) {
+            const currentCount = parseInt(unreadCount.textContent) || 0;
+            if (currentCount > 0) {
+                unreadCount.textContent = currentCount - 1;
+                if (currentCount === 1) {
+                    unreadCount.style.display = 'none';
+                }
+            }
         }
         
     } catch (err) {
@@ -329,33 +363,53 @@ function initWebSocket() {
     try {
         if (window.socket) window.socket.disconnect();
         
-        // Use WebSocket URL with /socket.io path and admin namespace
+        // Use WebSocket URL with the correct path
         const wsUrl = API_URL.replace('http', 'ws').replace('/api', '');
-        window.socket = io(`${wsUrl}/admin`, {
+        window.socket = io(wsUrl, {
             auth: { token },
             path: '/socket.io',
-            transports: ['websocket', 'polling']
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            timeout: 20000
         });
 
         window.socket.on('connect', () => {
-            console.log('WebSocket connected to admin namespace');
+            console.log('✅ WebSocket connected');
+            // Subscribe to admin-specific events
+            window.socket.emit('admin:subscribe');
         });
 
         window.socket.on('reportUpdated', (data) => {
+            console.log('📝 Report updated:', data);
             loadNotifications();
             loadReports();
             showToast(`New update: ${data.message || 'Report updated'}`, 'info');
         });
 
         window.socket.on('connect_error', (err) => {
-            console.error('WebSocket error:', err.message);
+            console.error('❌ WebSocket connection error:', err.message);
+            showToast('Connection error. Reconnecting...', 'error');
+            
             // Only try to reconnect if we're not already reconnecting
             if (!window.reconnecting) {
                 window.reconnecting = true;
                 setTimeout(() => {
+                    console.log('🔄 Attempting to reconnect WebSocket...');
                     window.reconnecting = false;
                     initWebSocket();
                 }, 5000);
+            }
+        });
+
+        window.socket.on('disconnect', (reason) => {
+            console.log('🔌 WebSocket disconnected:', reason);
+            if (reason === 'io server disconnect') {
+                // The disconnection was initiated by the server, you need to reconnect manually
+                console.log('Server disconnected the socket. Reconnecting...');
+                setTimeout(() => initWebSocket(), 1000);
             }
         });
 
