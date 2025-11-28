@@ -57,7 +57,8 @@ const reportSchema = new mongoose.Schema({
             "Sales Report", 
             "Inventory Report", 
             "Resources Report",
-            "Status Report"
+            "Status Report",
+            "HR"
         ],
         required: true 
     },
