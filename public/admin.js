@@ -167,22 +167,39 @@ async function loadReports() {
             return new Date(b.createdAt) - new Date(a.createdAt);
         });
 
-        // Render reports in table format
+        // Render reports with enhanced styling and unique indicators
         container.innerHTML = reports.length > 0
-            ? reports.map(report => `
-                <tr data-id="${report._id}">
-                    <td>${report.title || 'No title'}</td>
-                    <td><span class="status ${report.status.toLowerCase()}">${report.status}</span></td>
-                    <td>${formatDate(report.createdAt)}</td>
-                    <td class="actions">
-                        ${report.status === 'Pending' ? `
-                            <button class="btn-approve" onclick="updateReportStatus('${report._id}', 'Approved')">Approve</button>
-                            <button class="btn-reject" onclick="updateReportStatus('${report._id}', 'Rejected')">Reject</button>
-                        ` : ''}
-                        <button class="btn-view" onclick="viewReportDetails('${report._id}')">View</button>
+            ? reports.map((report, index) => {
+                const isUnique = report.isUnique || false;
+                const reportId = report.reportId || `REP-${String(index + 1).padStart(4, '0')}`;
+                const statusClass = report.status.toLowerCase();
+                
+                return `
+                <tr data-id="${report._id}" class="${isUnique ? 'unique-report' : ''}">
+                    <td>
+                        <div class="report-header">
+                            <h3>
+                                ${report.title || 'No title'}
+                                ${isUnique ? '<span class="unique-badge">★ UNIQUE</span>' : ''}
+                            </h3>
+                            <span class="report-id">${reportId}</span>
+                        </div>
+                        <div class="report-meta">
+                            <p><strong>Category:</strong> ${report.category || 'N/A'}</p>
+                            <p><strong>Submitted by:</strong> ${report.user?.name || 'System'}</p>
+                            <p class="status-${statusClass}"><strong>Status:</strong> ${report.status}</p>
+                            <p><small>${formatDate(report.createdAt)}</small></p>
+                        </div>
+                        <div class="action-buttons">
+                            ${report.status === 'Pending' ? `
+                                <button class="btn-approve" onclick="updateReportStatus('${report._id}', 'Approved')">✓ Approve</button>
+                                <button class="btn-reject" onclick="updateReportStatus('${report._id}', 'Rejected')">✗ Reject</button>
+                            ` : ''}
+                            <button class="btn-view" onclick="viewReportDetails('${report._id}')">View Details</button>
+                        </div>
                     </td>
-                </tr>
-            `).join('')
+                </tr>`;
+            }).join('')
             : '<tr><td colspan="4" class="center">No reports found.</td></tr>';
 
     } catch (err) {
