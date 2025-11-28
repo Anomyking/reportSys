@@ -669,7 +669,7 @@ async function loadSystemNotifications() {
 
     try {
         // Use the correct endpoint for system notifications
-        const res = await fetch(`${API_URL}/admin/notifications/all`, { 
+        const res = await fetch(`${API_URL}/notifications/admin/all`, { 
             headers: { 
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
