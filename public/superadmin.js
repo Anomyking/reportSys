@@ -102,7 +102,7 @@ async function loadAllUsers() {
 
         table.innerHTML = users.length
             ? users.map((u) => `
-          <tr>
+          <tr data-user-id="${u._id}">
             <td>${u.name}</td>
             <td>${u.email}</td>
             <td>${getRoleBadge(u.role)}</td>
@@ -111,6 +111,7 @@ async function loadAllUsers() {
                 ? `
                   <button class="promote-btn" data-id="${u._id}" data-role="admin">Promote</button>
                   <button class="demote-btn" data-id="${u._id}" data-role="user">Demote</button>
+                  <button class="delete-user-btn" data-id="${u._id}" style="background-color: #dc3545; color: white; margin-left: 5px;">Delete</button>
                 `
                 : "—"}
             </td>
@@ -130,6 +131,13 @@ async function loadAllUsers() {
             )
         );
 
+        document.querySelectorAll(".delete-user-btn").forEach((btn) =>
+            btn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                deleteUser(btn.dataset.id);
+            })
+        );
+
     } catch (err) {
         table.innerHTML = `<tr><td colspan="4" style="color:red;">Error: ${err.message}</td></tr>`;
         showAlert(err.message);
@@ -138,7 +146,7 @@ async function loadAllUsers() {
 
 async function updateUserRole(id, role) {
     try {
-        // ➡️ CORRECTED: Uses /admin/users/:id/role
+        // CORRECTED: Uses /admin/users/:id/role
         const res = await fetch(`${API_URL}/admin/users/${id}/role`, {
             method: "PUT",
             headers: {
@@ -149,10 +157,44 @@ async function updateUserRole(id, role) {
         });
 
         if (!res.ok) throw await handleResponseError(res);
-        showAlert(`Role updated to ${role}`);
+        showToast(`User role updated to ${role}`, 'success');
         loadAllUsers();
     } catch (err) {
-        showAlert(err.message);
+        console.error('Error updating user role:', err);
+        showToast(`Error: ${err.message}`, 'error');
+    }
+}
+
+async function deleteUser(userId) {
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_URL}/admin/users/${userId}`, {
+            method: 'DELETE',
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!res.ok) {
+            const error = await handleResponseError(res);
+            throw error;
+        }
+
+        // Remove the user from the UI
+        const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
+        if (userRow) {
+            userRow.remove();
+        }
+
+        showToast('User deleted successfully', 'success');
+        loadAllUsers(); // Refresh the users list
+    } catch (err) {
+        console.error('Error deleting user:', err);
+        showToast(`Error: ${err.message}`, 'error');
     }
 }
 
@@ -165,7 +207,7 @@ async function loadReports() {
     container.innerHTML = `<p>Loading...</p>`;
 
     try {
-        // ➡️ CORRECTED: Uses /admin/reports (Shared route)
+        // CORRECTED: Uses /admin/reports (Shared route)
         const res = await fetch(`${API_URL}/admin/reports`, {
             headers: { Authorization: `Bearer ${token}` },
         });
@@ -175,7 +217,7 @@ async function loadReports() {
         if (reports.data) reports = reports.data;
 
         // ----------------------------------------------------
-        // ⭐ NEW: Sorting Logic Implementation ⭐
+        // NEW: Sorting Logic Implementation
         // ----------------------------------------------------
         reports.sort((a, b) => {
             const statusA = a.status;

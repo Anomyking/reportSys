@@ -196,6 +196,7 @@ async function loadReports() {
                                 <button class="btn-reject" onclick="updateReportStatus('${report._id}', 'Rejected')">✗ Reject</button>
                             ` : ''}
                             <button class="btn-view" onclick="viewReportDetails('${report._id}')">View Details</button>
+                            <button class="btn-delete" onclick="deleteReport('${report._id}')" style="background-color: #dc3545; color: white;">Delete</button>
                         </div>
                     </td>
                 </tr>`;
@@ -540,7 +541,43 @@ function handleLogout() {
     window.location.href = '/login.html';
 }
 
+// Delete report function
+async function deleteReport(reportId) {
+    if (!reportId) return;
+
+    if (!confirm('Are you sure you want to delete this report? This action cannot be undone.')) {
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_URL}/admin/reports/${reportId}`, {
+            method: 'DELETE',
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!res.ok) {
+            const error = await handleResponseError(res);
+            throw error;
+        }
+
+        // Remove the report from the UI
+        const reportElement = document.querySelector(`[data-report-id="${reportId}"]`);
+        if (reportElement) {
+            reportElement.remove();
+        }
+
+        showToast('Report deleted successfully', 'success');
+    } catch (err) {
+        console.error('Error deleting report:', err);
+        showToast(`Error: ${err.message}`, 'error');
+    }
+}
+
 // Make functions available globally
 window.updateReportStatus = updateReportStatus;
 window.viewReportDetails = viewReportDetails;
 window.markAsRead = markAsRead;
+window.deleteReport = deleteReport;
