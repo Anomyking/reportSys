@@ -45,8 +45,6 @@
       max-width: 100%;
       box-sizing: border-box;
       position: relative;
-    }
-    .report-card {
       text-wrap: wrap;
     }
     
@@ -97,14 +95,29 @@
     }
     
     .report-meta {
-      margin-top: 8px;
+      margin: 10px 0;
+      padding: 10px;
+      background-color: #f9f9f9;
+      border-radius: 4px;
+      font-size: 0.9em;
+      color: #666;
     }
     
     .report-meta p {
-      margin: 4px 0;
+      margin: 5px 0;
+      padding: 2px 0;
       word-break: break-word;
       overflow-wrap: break-word;
       line-height: 1.4;
+    }
+    
+    .report-meta p:not(:last-child) {
+      border-bottom: 1px solid #eee;
+      padding-bottom: 8px;
+    }
+    
+    .report-meta p:last-child {
+      margin-bottom: 0;
     }
     
     .action-buttons {
@@ -121,6 +134,12 @@
       cursor: pointer;
       font-size: 0.9em;
       white-space: nowrap;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    
+    .action-buttons button:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
     }
     
     .btn-approve { background-color: #28a745; color: white; }
@@ -145,13 +164,13 @@
       border: 1px solid rgba(255,255,255,0.3);
       text-shadow: 0 1px 1px rgba(0,0,0,0.2);
       animation: pulse 2s infinite;
+      white-space: nowrap;
     }
     
     @keyframes pulse {
       0% { transform: scale(1); }
       50% { transform: scale(1.05); }
       100% { transform: scale(1); }
-      white-space: nowrap;
     }
     
     .report-id {
@@ -160,39 +179,8 @@
       background-color: #f0f0f0;
       padding: 2px 8px;
       border-radius: 10px;
-    }
-    
-    .report-meta {
-      font-size: 0.9em;
-      color: #666;
-      margin: 10px 0;
-      padding: 10px;
-      background-color: #f9f9f9;
-      border-radius: 4px;
-      overflow: hidden;
-    }
-    
-    .report-meta p {
-      margin: 5px 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
       white-space: nowrap;
-      max-width: 100%;
-      padding-right: 5px;
-    }
-    
-    .report-meta p:not(:last-child) {
-      border-bottom: 1px solid #eee;
-      padding-bottom: 5px;
-    }
-    
-    .report-meta p:last-child {
-      margin-bottom: 0;
-      padding-bottom: 0;
-    }
-    
-    .report-meta p {
-      margin: 5px 0;
+      display: inline-block;
     }
     
     .status-pending {

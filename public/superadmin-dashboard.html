@@ -37,11 +37,11 @@
       background-color: #fff;
       border-left: 4px solid #ddd;
       border-radius: 0 4px 4px 0;
-      padding: 15px;
-      margin-bottom: 15px;
+      padding: 20px 15px 15px; /* Added more top padding for badge */
+      margin: 15px 0; /* Adjusted margin */
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
       transition: all 0.2s ease;
-      overflow: hidden;
+      overflow: visible; /* Changed to visible to show badges */
       max-width: 100%;
       box-sizing: border-box;
       position: relative;
@@ -133,12 +133,13 @@
       letter-spacing: 1px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.15);
       position: absolute;
-      top: -10px;
+      top: -8px; /* Adjusted to show full badge */
       right: 10px;
       z-index: 2;
       border: 1px solid rgba(255,255,255,0.3);
       text-shadow: 0 1px 1px rgba(0,0,0,0.2);
       white-space: nowrap;
+      transform: translateZ(0); /* Fix for rendering */
     }
     
     .urgent-badge {
@@ -152,13 +153,14 @@
       letter-spacing: 1px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.2);
       position: absolute;
-      top: -10px;
-      left: 15px;
+      top: -8px; /* Adjusted to show full badge */
+      left: 10px; /* Slightly adjusted left position */
       z-index: 2;
       border: 1px solid rgba(255,255,255,0.3);
       text-shadow: 0 1px 1px rgba(0,0,0,0.2);
       animation: pulse 1.5s infinite;
       white-space: nowrap;
+      transform: translateZ(0); /* Fix for rendering */
     }
     
     @keyframes pulse {
@@ -360,10 +362,12 @@
       margin: 5% auto;
       padding: 25px;
       border-radius: 8px;
-      width: 80%;
+      width: 90%;
       max-width: 800px;
+      max-height: 80vh;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
       position: relative;
+      overflow-y: auto;
     }
 
     .close-modal {
@@ -379,6 +383,9 @@
     .report-details {
       margin: 20px 0;
       line-height: 1.6;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      hyphens: auto;
     }
 
     .report-description {
@@ -387,14 +394,32 @@
       background-color: #f9f9f9;
       border-radius: 4px;
       border-left: 4px solid #4caf50;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      max-height: 300px;
+      overflow-y: auto;
+      font-family: inherit;
+      line-height: 1.5;
     }
 
     .report-attachment {
       margin-top: 20px;
-      padding: 10px;
+      padding: 15px;
       background-color: #f0f8ff;
       border-radius: 4px;
       border-left: 4px solid #2196f3;
+      word-break: break-all;
+    }
+    
+    .report-attachment a {
+      color: #2196f3;
+      text-decoration: none;
+      word-break: break-all;
+    }
+    
+    .report-attachment a:hover {
+      text-decoration: underline;
     }
 
     .modal-actions {
@@ -402,8 +427,9 @@
       justify-content: flex-end;
       gap: 10px;
       margin-top: 20px;
-      padding-top: 15px;
+      padding: 15px 0 0;
       border-top: 1px solid #eee;
+      flex-wrap: wrap;
     }
 
     /* Make report cards clickable */
