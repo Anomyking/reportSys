@@ -17,6 +17,7 @@ import {
   updateUserRole,
   getSystemNotifications,
   sendGlobalNotification, // <-- ADDED: Replaces 'sendNotification'
+  deleteUser,
 } from "../controllers/adminController.js";
 
 const router = express.Router();
@@ -80,7 +81,10 @@ router.put("/users/:id/role", updateUserRole);
 // 10. Send Notification to all/specific user (This is your 'sendNotification')
 router.post("/notifications", sendGlobalNotification);
 
-// 11. Get All System Notifications
-router.get("/notifications/all", getSystemNotifications);
+// 8. Send Global Notifications (Superadmin only)
+router.post("/notifications/global", authorize("superadmin"), sendGlobalNotification);
+
+// 9. Delete a user (Superadmin only)
+router.delete("/users/:id", authorize("superadmin"), deleteUser);
 
 export default router;

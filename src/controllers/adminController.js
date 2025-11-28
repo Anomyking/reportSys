@@ -273,6 +273,34 @@ export const rejectPromotion = async (req, res, next) => {
 // =============================================================
 
 /************************************************************
+ * 🔸 Delete a user (Superadmin only)
+ ************************************************************/
+export const deleteUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Prevent deleting yourself or other superadmins
+    if (user.role === 'superadmin') {
+      return res.status(403).json({ message: 'Cannot delete a superadmin' });
+    }
+
+    await User.findByIdAndDelete(req.params.id);
+    
+    // Optionally, you might want to clean up related data here
+    // For example: Delete user's reports, notifications, etc.
+    
+    res.status(200).json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ message: 'Error deleting user', error: error.message });
+  }
+};
+
+/************************************************************
  * 🔸 SUPERADMIN ONLY: USER MANAGEMENT
  ************************************************************/
 
