@@ -125,34 +125,21 @@ async function loadAllUsers() {
             <td>
               ${u.role !== "superadmin"
                 ? `
-                  <button class="promote-btn" data-id="${u._id}" data-role="admin">Promote</button>
-                  <button class="demote-btn" data-id="${u._id}" data-role="user">Demote</button>
-                  <button class="delete-user-btn" data-id="${u._id}" style="background-color: #dc3545; color: white; margin-left: 5px;">Delete</button>
+                  <button class="delete-user-btn" data-id="${u._id}" style="background-color: #dc3545; color: white;">Delete User</button>
                 `
-                : "—"}
-            </td>
+                : "—"}</td>
           </tr>`
             ).join("")
             : `<tr><td colspan="4" style="text-align:center;">No users found.</td></tr>`;
 
-        document.querySelectorAll(".promote-btn").forEach((btn) =>
-            btn.addEventListener("click", () =>
-                updateUserRole(btn.dataset.id, btn.dataset.role)
-            )
-        );
-
-        document.querySelectorAll(".demote-btn").forEach((btn) =>
-            btn.addEventListener("click", () =>
-                updateUserRole(btn.dataset.id, btn.dataset.role)
-            )
-        );
-
-        document.querySelectorAll(".delete-user-btn").forEach((btn) =>
+        document.querySelectorAll(".delete-user-btn").forEach((btn) => {
             btn.addEventListener("click", (e) => {
                 e.stopPropagation();
-                deleteUser(btn.dataset.id);
-            })
-        );
+                if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+                    deleteUser(btn.dataset.id);
+                }
+            });
+        });
 
     } catch (err) {
         table.innerHTML = `<tr><td colspan="4" style="color:red;">Error: ${err.message}</td></tr>`;
@@ -160,32 +147,7 @@ async function loadAllUsers() {
     }
 }
 
-async function updateUserRole(id, role) {
-    try {
-        // CORRECTED: Uses /admin/users/:id/role
-        const res = await fetch(`${API_URL}/admin/users/${id}/role`, {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ role }),
-        });
-
-        if (!res.ok) throw await handleResponseError(res);
-        showToast(`User role updated to ${role}`, 'success');
-        loadAllUsers();
-    } catch (err) {
-        console.error('Error updating user role:', err);
-        showToast(`Error: ${err.message}`, 'error');
-    }
-}
-
 async function deleteUser(userId) {
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-        return;
-    }
-
     try {
         const res = await fetch(`${API_URL}/admin/users/${userId}`, {
             method: 'DELETE',
@@ -200,14 +162,16 @@ async function deleteUser(userId) {
             throw error;
         }
 
-        // Remove the user from the UI
         const userRow = document.querySelector(`tr[data-user-id="${userId}"]`);
         if (userRow) {
-            userRow.remove();
+            userRow.style.opacity = '0.5';
+            userRow.style.transition = 'opacity 0.3s';
+            setTimeout(() => userRow.remove(), 300);
         }
 
         showToast('User deleted successfully', 'success');
-        loadAllUsers(); // Refresh the users list
+        
+        setTimeout(() => loadAllUsers(), 500);
     } catch (err) {
         console.error('Error deleting user:', err);
         showToast(`Error: ${err.message}`, 'error');
