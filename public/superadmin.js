@@ -332,27 +332,31 @@ async function loadReports() {
             return dateB - dateA;
         });
 
-        container.innerHTML = reports.length
-            ? reports.map((r, index) => {
-                const isUrgent = r.urgency === 'Urgent' || r.priority === 'High';
-                const cardClasses = [];
-                if (r.isUnique) cardClasses.push('unique-report');
-                if (isUrgent) cardClasses.push('urgent-report');
-                
-                return `
+        if (reports.length === 0) {
+            container.innerHTML = "<p>No reports available.</p>";
+            return;
+        }
+
+        const reportsHTML = reports.map((r, index) => {
+            const isUrgent = r.urgency === 'Urgent' || r.priority === 'High';
+            const cardClasses = [];
+            if (r.isUnique) cardClasses.push('unique-report');
+            if (isUrgent) cardClasses.push('urgent-report');
+            
+            return `
           <div class="report-card ${cardClasses.join(' ')}" data-report-id="${r._id}">
             ${isUrgent ? '<span class="urgent-badge">⚠️ URGENT</span>' : ''}
             ${r.isUnique ? '<span class="unique-badge">★ UNIQUE</span>' : ''}
             <div class="report-header">
-              <h3>${r.title}</h3>
+              <h3>${r.title || 'No Title'}</h3>
               <span class="report-id">#${r.reportId || `REP-${String(index + 1).padStart(4, '0')}`}</span>
             </div>
             <p>${r.description ? (r.description.length > 150 ? r.description.substring(0, 150) + '...' : r.description) : 'No description'}</p>
             <div class="report-meta">
-              <p><strong>Category:</strong> ${r.category}</p>
-              <p class="status-${r.status.toLowerCase()}"><strong>Status:</strong> ${r.status}</p>
+              <p><strong>Category:</strong> ${r.category || 'N/A'}</p>
+              <p class="status-${(r.status || '').toLowerCase()}"><strong>Status:</strong> ${r.status || 'Unknown'}</p>
               <p><small>Submitted by: ${r.user?.name || "Unknown"}</small></p>
-              <p><small>Date: ${new Date(r.dateSubmitted || r.date).toLocaleString()}</small></p>
+              <p><small>Date: ${r.dateSubmitted || r.date ? new Date(r.dateSubmitted || r.date).toLocaleString() : 'N/A'}</small></p>
             </div>
             ${r.status === "Pending" ? `
               <div class="action-buttons">
@@ -361,7 +365,9 @@ async function loadReports() {
               </div>
             ` : ""}
           </div>`;
-            }).join("");
+        }).join("");
+
+        container.innerHTML = reportsHTML;
             
         // Add click event listeners to all report cards
         document.querySelectorAll('.report-card').forEach((card, index) => {
@@ -373,7 +379,6 @@ async function loadReports() {
                 showReportDetails(reports[index]);
             });
         });
-            : "<p>No reports available.</p>";
 
     } catch (err) {
         container.innerHTML = `<p style="color:red;">Error: ${err.message}</p>`;
