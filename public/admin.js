@@ -16,7 +16,15 @@ function showAlert(msg) {
     // You can implement a toast notification here if needed
 }
 
-const formatDate = (date) => new Date(date).toLocaleString();
+const formatDate = (date) => {
+    try {
+        const parsedDate = new Date(date);
+        return isNaN(parsedDate.getTime()) ? 'Date not available' : parsedDate.toLocaleString();
+    } catch (e) {
+        console.error('Error formatting date:', e);
+        return 'Date not available';
+    }
+};
 
 /****************************************
  * INIT

@@ -18,19 +18,35 @@ const formatDate = (date) => new Date(date).toLocaleString();
 
 function getRoleBadge(role) {
     const colors = {
-        superadmin: "#FF0B55",
-        admin: "#CF0F47",
-        user: "#777",
+        superadmin: {
+            bg: "#007bff",  // Primary blue
+            text: "#fff"
+        },
+        admin: {
+            bg: "#6c757d",  // Gray
+            text: "#fff"
+        },
+        user: {
+            bg: "#e9ecef",  // Light gray
+            text: "#212529" // Dark gray
+        }
     };
 
+    const roleConfig = colors[role] || { bg: "#6c757d", text: "#fff" };
+    
     return `
     <span style="
-      background:${colors[role]};
-      color:#fff;
-      padding:4px 8px;
-      border-radius:6px;
-      font-size:0.8rem;">
-      ${role}
+        background: ${roleConfig.bg};
+        color: ${roleConfig.text};
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        ${role === 'superadmin' ? 'Super Admin' : role}
     </span>`;
 }
 
