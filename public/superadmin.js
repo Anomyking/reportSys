@@ -217,6 +217,85 @@ async function deleteUser(userId) {
 /****************************************
  * REPORTS (MODIFIED)
  ****************************************/
+// Store the current reports for modal access
+let currentReports = [];
+
+// Modal functionality
+const modal = document.getElementById('reportModal');
+const closeModal = document.querySelector('.close-modal');
+const modalTitle = document.getElementById('modalReportTitle');
+const modalStatus = document.getElementById('modalReportStatus');
+const modalCategory = document.getElementById('modalReportCategory');
+const modalAuthor = document.getElementById('modalReportAuthor');
+const modalDate = document.getElementById('modalReportDate');
+const modalDescription = document.getElementById('modalReportDescription');
+const modalAttachment = document.getElementById('modalReportAttachment');
+const btnApprove = document.getElementById('btnApprove');
+const btnReject = document.getElementById('btnReject');
+const btnClose = document.getElementById('btnClose');
+
+// Close modal when clicking the X or outside the modal
+closeModal?.addEventListener('click', () => modal.style.display = 'none');
+btnClose?.addEventListener('click', () => modal.style.display = 'none');
+window.addEventListener('click', (e) => {
+    if (e.target === modal) {
+        modal.style.display = 'none';
+    }
+});
+
+// Handle approve/reject actions
+btnApprove?.addEventListener('click', () => {
+    const reportId = modal.getAttribute('data-report-id');
+    if (reportId) {
+        updateReportStatus(reportId, 'Approved');
+        modal.style.display = 'none';
+    }
+});
+
+btnReject?.addEventListener('click', () => {
+    const reportId = modal.getAttribute('data-report-id');
+    if (reportId) {
+        updateReportStatus(reportId, 'Rejected');
+        modal.style.display = 'none';
+    }
+});
+
+// Function to show report details in modal
+function showReportDetails(report) {
+    modalTitle.textContent = report.title || 'No Title';
+    modalStatus.textContent = report.status || 'N/A';
+    modalStatus.className = `status-${report.status?.toLowerCase() || ''}`;
+    modalCategory.textContent = report.category || 'N/A';
+    modalAuthor.textContent = report.user?.name || 'Unknown';
+    modalDate.textContent = new Date(report.dateSubmitted || report.date || new Date()).toLocaleString();
+    modalDescription.textContent = report.description || 'No description provided.';
+    
+    // Handle attachment if available
+    if (report.attachmentPath) {
+        const fileName = report.attachmentName || 'Download Attachment';
+        modalAttachment.innerHTML = `
+            <h3>Attachment:</h3>
+            <a href="${report.attachmentPath}" target="_blank" class="attachment-link">
+                ${fileName}
+            </a>
+        `;
+    } else {
+        modalAttachment.innerHTML = '';
+    }
+    
+    // Set the report ID for approve/reject actions
+    modal.setAttribute('data-report-id', report._id);
+    
+    // Show/hide action buttons based on status
+    const actions = document.querySelector('.modal-actions');
+    if (actions) {
+        actions.style.display = report.status === 'Pending' ? 'flex' : 'none';
+    }
+    
+    // Show the modal
+    modal.style.display = 'block';
+}
+
 async function loadReports() {
     const container = document.getElementById("reportsContainer");
     if (!container) return;
@@ -231,6 +310,9 @@ async function loadReports() {
         if (!res.ok) throw await handleResponseError(res);
         let reports = await res.json();
         if (reports.data) reports = reports.data;
+        
+        // Store reports for modal access
+        currentReports = reports;
 
         // ----------------------------------------------------
         // NEW: Sorting Logic Implementation
@@ -251,28 +333,46 @@ async function loadReports() {
         });
 
         container.innerHTML = reports.length
-            ? reports.map((r, index) => `
-          <div class="report-card ${r.isUnique ? 'unique-report' : ''}" data-report-id="${r._id}">
+            ? reports.map((r, index) => {
+                const isUrgent = r.urgency === 'Urgent' || r.priority === 'High';
+                const cardClasses = [];
+                if (r.isUnique) cardClasses.push('unique-report');
+                if (isUrgent) cardClasses.push('urgent-report');
+                
+                return `
+          <div class="report-card ${cardClasses.join(' ')}" data-report-id="${r._id}">
+            ${isUrgent ? '<span class="urgent-badge">⚠️ URGENT</span>' : ''}
+            ${r.isUnique ? '<span class="unique-badge">★ UNIQUE</span>' : ''}
             <div class="report-header">
-              <h3>${r.title} ${r.isUnique ? '<span class="unique-badge">★ UNIQUE</span>' : ''}</h3>
+              <h3>${r.title}</h3>
               <span class="report-id">#${r.reportId || `REP-${String(index + 1).padStart(4, '0')}`}</span>
             </div>
-            <p>${r.description}</p>
+            <p>${r.description ? (r.description.length > 150 ? r.description.substring(0, 150) + '...' : r.description) : 'No description'}</p>
             <div class="report-meta">
               <p><strong>Category:</strong> ${r.category}</p>
               <p class="status-${r.status.toLowerCase()}"><strong>Status:</strong> ${r.status}</p>
               <p><small>Submitted by: ${r.user?.name || "Unknown"}</small></p>
               <p><small>Date: ${new Date(r.dateSubmitted || r.date).toLocaleString()}</small></p>
             </div>
-
             ${r.status === "Pending" ? `
               <div class="action-buttons">
-                <button class="btn-approve" onclick="updateReportStatus('${r._id}','Approved')">✓ Approve</button>
-                <button class="btn-reject" onclick="updateReportStatus('${r._id}','Rejected')">✗ Reject</button>
+                <button class="btn-approve" onclick="event.stopPropagation(); updateReportStatus('${r._id}','Approved')">✓ Approve</button>
+                <button class="btn-reject" onclick="event.stopPropagation(); updateReportStatus('${r._id}','Rejected')">✗ Reject</button>
               </div>
             ` : ""}
-          </div>`
-            ).join("")
+          </div>`;
+            }).join("");
+            
+        // Add click event listeners to all report cards
+        document.querySelectorAll('.report-card').forEach((card, index) => {
+            card.addEventListener('click', (e) => {
+                // Don't trigger if clicking on buttons or links inside the card
+                if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A') {
+                    return;
+                }
+                showReportDetails(reports[index]);
+            });
+        });
             : "<p>No reports available.</p>";
 
     } catch (err) {
