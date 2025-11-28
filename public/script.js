@@ -492,28 +492,6 @@ function setupProfileSection() {
     }
 }
 
-/************************************************************
- * ADMIN FEATURES
- ************************************************************/
-function setupAdminFeatures() {
-    const requestAdminBtn = document.getElementById("requestAdminBtn");
-    if (!requestAdminBtn) return;
-
-    requestAdminBtn.addEventListener("click", async () => {
-        try {
-            const data = await apiFetch("/users/request-admin", {
-                method: "POST",
-                body: JSON.stringify({}),
-            });
-
-            showAlert(data.message);
-            requestAdminBtn.disabled = true;
-            requestAdminBtn.textContent = "Request Pending";
-        } catch (err) {
-            showAlert("Error sending request: " + err.message);
-        }
-    });
-}
 
 /************************************************************
  * REPORT ANALYTICS & FILTERING
@@ -724,7 +702,6 @@ function initializeApp() {
     setupLoginForm();
     setupNavigation();
     setupReportForm();
-    setupAdminFeatures();
     setupReportFilters();
     setupFileSearch();
     setupProfileSection(); 
