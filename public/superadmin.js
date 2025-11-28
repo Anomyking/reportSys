@@ -193,17 +193,25 @@ async function loadReports() {
         });
 
         container.innerHTML = reports.length
-            ? reports.map((r) => `
-          <div class="report-card">
-            <h3>${r.title}</h3>
+            ? reports.map((r, index) => `
+          <div class="report-card ${r.isUnique ? 'unique-report' : ''}" data-report-id="${r._id}">
+            <div class="report-header">
+              <h3>${r.title} ${r.isUnique ? '<span class="unique-badge">★ UNIQUE</span>' : ''}</h3>
+              <span class="report-id">#${r.reportId || `REP-${String(index + 1).padStart(4, '0')}`}</span>
+            </div>
             <p>${r.description}</p>
-            <p><strong>Category:</strong> ${r.category}</p>
-            <p><strong>Status:</strong> ${r.status}</p>
-            <p><small>By: ${r.user?.name || "Unknown"}</small></p>
+            <div class="report-meta">
+              <p><strong>Category:</strong> ${r.category}</p>
+              <p class="status-${r.status.toLowerCase()}"><strong>Status:</strong> ${r.status}</p>
+              <p><small>Submitted by: ${r.user?.name || "Unknown"}</small></p>
+              <p><small>Date: ${new Date(r.dateSubmitted || r.date).toLocaleString()}</small></p>
+            </div>
 
             ${r.status === "Pending" ? `
-              <button onclick="updateReportStatus('${r._id}','Approved')">Approve</button>
-              <button onclick="updateReportStatus('${r._id}','Rejected')">Reject</button>
+              <div class="action-buttons">
+                <button class="btn-approve" onclick="updateReportStatus('${r._id}','Approved')">✓ Approve</button>
+                <button class="btn-reject" onclick="updateReportStatus('${r._id}','Rejected')">✗ Reject</button>
+              </div>
             ` : ""}
           </div>`
             ).join("")
