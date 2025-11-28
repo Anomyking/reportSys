@@ -475,15 +475,74 @@ function initWebSocket() {
 function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    toast.textContent = message;
+    
+    // Create close button
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'toast-close';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.onclick = () => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    };
+    
+    // Add icon based on type
+    let icon = '';
+    switch(type) {
+        case 'success':
+            icon = '✓';
+            break;
+        case 'error':
+            icon = '⚠️';
+            break;
+        case 'warning':
+            icon = '⚠️';
+            break;
+        case 'info':
+        default:
+            icon = 'ℹ️';
+    }
+    
+    toast.innerHTML = `
+        <span class="toast-icon">${icon}</span>
+        <span class="toast-message">${message}</span>
+    `;
+    toast.appendChild(closeBtn);
+    
     document.body.appendChild(toast);
     
+    // Trigger reflow
+    void toast.offsetWidth;
+    
+    // Show toast
     setTimeout(() => {
         toast.classList.add('show');
-        setTimeout(() => {
+        
+        // Auto-hide after delay
+        const autoHide = setTimeout(() => {
             toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 300);
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.remove();
+                }
+            }, 300);
         }, 5000);
+        
+        // Pause auto-hide on hover
+        toast.addEventListener('mouseenter', () => {
+            clearTimeout(autoHide);
+        });
+        
+        // Resume auto-hide when mouse leaves
+        toast.addEventListener('mouseleave', () => {
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.remove();
+                    }
+                }, 300);
+            }, 2000);
+        });
     }, 100);
 }
 
